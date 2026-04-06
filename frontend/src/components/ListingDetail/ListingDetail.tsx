@@ -216,14 +216,14 @@ function AttributeRow({
   const tooltip = tooltipParts.join('\n')
 
   return (
-    <div className={`attr-row ${requirement.is_hard ? 'hard' : 'soft'}`} data-tip={tooltip}>
+    <div className={`attr-row ${requirement.is_hard ? 'hard' : 'soft'}`}>
       <span className={`attr-value ${isNull ? 'unknown' : ''} ${isBoolFail ? 'fail' : ''}`}>
         {formatAttrValue(value, requirement)}
       </span>
       <span className="attr-icon">
         {isNull ? '?' : isBoolFail ? '\u2717' : '\u2713'}
       </span>
-      <span className="attr-label">
+      <span className="attr-label" data-tip={tooltip}>
         {requirement.is_hard && <span className="hard-marker">*</span>}
         {shortLabel(requirement.label)}
       </span>
