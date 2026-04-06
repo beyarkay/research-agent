@@ -193,3 +193,33 @@ async def refine_project(project_id: str, body: RefineRequest) -> ProjectRespons
     asyncio.create_task(run_research(project_id))
 
     return project
+
+
+@router.post("/projects/{project_id}/resume", response_model=ProjectResponse)
+async def resume_project(project_id: str) -> ProjectResponse:
+    """Resume a project's research from where it left off."""
+    db = await get_db()
+    try:
+        cursor = await db.execute("SELECT * FROM projects WHERE id = ?", (project_id,))
+        row = await cursor.fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail="Project not found")
+
+        await db.execute(
+            "UPDATE projects SET status = 'pending', updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?",
+            (project_id,),
+        )
+        await db.commit()
+
+        cursor = await db.execute("SELECT * FROM projects WHERE id = ?", (project_id,))
+        updated = await cursor.fetchone()
+        assert updated is not None
+        project = _row_to_project(updated)
+    finally:
+        await db.close()
+
+    from app.research.engine import run_research
+
+    asyncio.create_task(run_research(project_id))
+
+    return project

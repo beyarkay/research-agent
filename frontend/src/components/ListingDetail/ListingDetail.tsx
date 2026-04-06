@@ -3,6 +3,10 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '../../api/client'
 import type { Fallback, Listing, Requirement } from '../../types'
 
+function mapsUrl(address: string): string {
+  return `https://www.google.com/maps/search/${encodeURIComponent(address)}`
+}
+
 export function ListingDetail({
   listing,
   requirements,
@@ -17,7 +21,7 @@ export function ListingDetail({
     queryFn: () => api.getFallbacks(projectId, listing.id),
   })
 
-  const completeParts = requirements.filter(
+  const filledCount = requirements.filter(
     (r) => listing.attributes[r.key] !== null && listing.attributes[r.key] !== undefined
   ).length
 
@@ -32,10 +36,16 @@ export function ListingDetail({
             </div>
           )}
         </div>
-        {listing.address && <p className="detail-address">{listing.address}</p>}
+        {listing.address && (
+          <p className="detail-address">
+            <a href={mapsUrl(listing.address)} target="_blank" rel="noopener noreferrer">
+              {listing.address} &rarr;
+            </a>
+          </p>
+        )}
         <div className="detail-meta">
           <span>
-            Data: {completeParts}/{requirements.length} verified
+            Data: {filledCount}/{requirements.length} verified
           </span>
           {listing.url && (
             <a href={listing.url} target="_blank" rel="noopener noreferrer">
@@ -92,12 +102,15 @@ function AttributeRow({
 
   return (
     <div className={`attr-row ${requirement.is_hard ? 'hard' : 'soft'}`}>
-      <span className="attr-label">
-        {requirement.is_hard && <span className="hard-marker">*</span>}
-        {requirement.label}
-      </span>
       <span className={`attr-value ${isNull ? 'unknown' : ''} ${isBoolFail ? 'fail' : ''}`}>
         {formatAttrValue(value, requirement)}
+      </span>
+      <span className="attr-icon">
+        {isNull ? '?' : isBoolFail ? '\u2717' : '\u2713'}
+      </span>
+      <span className="attr-label" title={requirement.label}>
+        {requirement.is_hard && <span className="hard-marker">*</span>}
+        {shortLabel(requirement.label)}
       </span>
       {fallbacks.length > 0 && (
         <div className="fallback-list">
@@ -120,9 +133,15 @@ function AttributeRow({
   )
 }
 
+function shortLabel(label: string): string {
+  // Truncate long labels, full text available on hover via title attr
+  if (label.length <= 25) return label
+  return label.slice(0, 22) + '...'
+}
+
 function formatAttrValue(val: unknown, req: Requirement): string {
-  if (val === null || val === undefined) return '?'
-  if (req.type === 'bool') return val ? '\u2713 Yes' : '\u2717 No'
+  if (val === null || val === undefined) return '—'
+  if (req.type === 'bool') return val ? 'Yes' : 'No'
   if (req.type === 'int' || req.type === 'float') {
     const num = Number(val)
     const formatted = req.type === 'float' ? num.toLocaleString() : String(num)

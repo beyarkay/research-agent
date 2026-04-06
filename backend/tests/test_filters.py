@@ -35,11 +35,26 @@ def test_build_query_basic():
     sql, params = build_listing_query("proj1", filters, None, False, reqs)
 
     assert "project_id = ?" in sql
-    assert "json_extract(attributes, '$.has_coffee')" in sql
+    # Bool "true" now means "Yes + Unknown" — excludes only explicit false
+    assert "json_extract(attributes, '$.has_coffee') IS NULL" in sql
+    assert "!= 0" in sql
     assert "json_extract(attributes, '$.price') < ?" in sql
     assert params[0] == "proj1"
-    assert 1 in params  # bool true
     assert 5000.0 in params
+
+
+def test_build_query_bool_strict():
+    reqs = {"has_coffee": _req("has_coffee")}
+    filters = [("has_coffee", "", "strict_true")]
+    sql, params = build_listing_query("proj1", filters, None, False, reqs)
+    assert "json_extract(attributes, '$.has_coffee') = 1" in sql
+
+
+def test_build_query_name_search():
+    filters = [("_name", "", "workshop")]
+    sql, params = build_listing_query("proj1", filters, None, False, {})
+    assert "name LIKE ?" in sql
+    assert "%workshop%" in params
 
 
 def test_build_query_hide_failed():

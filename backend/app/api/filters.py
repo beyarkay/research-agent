@@ -28,7 +28,7 @@ def parse_filters(query_params: dict[str, str]) -> list[tuple[str, str, str]]:
 
 def cast_value(value: str, req_type: str) -> object:
     if req_type == "bool":
-        return 1 if value.lower() in ("true", "1", "yes") else 0
+        return 1 if value.lower() in ("true", "1", "yes", "strict_true") else 0
     if req_type == "int":
         return int(value)
     if req_type == "float":
@@ -48,9 +48,29 @@ def build_listing_query(
     params: list[object] = [project_id]
 
     for key, op, value in filters:
+        # Special: name search (not a JSON attribute)
+        if key == "_name":
+            conditions.append("name LIKE ?")
+            params.append(f"%{value}%")
+            continue
+
         req = requirements.get(key)
         if req is None:
             continue
+
+        # Special: bool "true" means "Yes OR Unknown" (don't exclude unknowns)
+        if req.type == "bool" and value.lower() == "true":
+            # Exclude only explicit false
+            conditions.append(
+                f"(json_extract(attributes, '$.{key}') IS NULL OR json_extract(attributes, '$.{key}') != 0)"
+            )
+            continue
+
+        # Special: bool "strict_true" means only verified true
+        if req.type == "bool" and value.lower() == "strict_true":
+            conditions.append(f"json_extract(attributes, '$.{key}') = 1")
+            continue
+
         sql_op = OPERATORS.get(op)
         if sql_op is None:
             continue

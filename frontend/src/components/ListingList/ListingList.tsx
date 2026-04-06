@@ -1,5 +1,9 @@
 import type { Listing, Requirement } from '../../types'
 
+function mapsUrl(address: string): string {
+  return `https://www.google.com/maps/search/${encodeURIComponent(address)}`
+}
+
 export function ListingList({
   listings,
   total,
@@ -13,7 +17,6 @@ export function ListingList({
   selectedId: number | null
   onSelect: (id: number) => void
 }) {
-  // Pick top 3 requirements for key stats display
   const keyReqs = requirements.slice(0, 4)
 
   return (
@@ -21,18 +24,21 @@ export function ListingList({
       <div className="listing-list-header">
         <span>{total} results</span>
       </div>
-      {listings.map((listing) => (
-        <ListingCard
-          key={listing.id}
-          listing={listing}
-          keyReqs={keyReqs}
-          selected={listing.id === selectedId}
-          onClick={() => onSelect(listing.id)}
-        />
-      ))}
-      {listings.length === 0 && (
-        <p className="empty">No listings match your filters.</p>
-      )}
+      <div className="listing-list-scroll">
+        {listings.map((listing) => (
+          <ListingCard
+            key={listing.id}
+            listing={listing}
+            keyReqs={keyReqs}
+            allReqCount={requirements.length}
+            selected={listing.id === selectedId}
+            onClick={() => onSelect(listing.id)}
+          />
+        ))}
+        {listings.length === 0 && (
+          <p className="empty">No listings match your filters.</p>
+        )}
+      </div>
     </div>
   )
 }
@@ -40,16 +46,20 @@ export function ListingList({
 function ListingCard({
   listing,
   keyReqs,
+  allReqCount,
   selected,
   onClick,
 }: {
   listing: Listing
   keyReqs: Requirement[]
+  allReqCount: number
   selected: boolean
   onClick: () => void
 }) {
-  const completeParts = Math.round(listing.data_completeness * keyReqs.length)
-  const totalReqs = keyReqs.length
+  // Count filled attributes across ALL requirements, not just displayed ones
+  const filledCount = Object.values(listing.attributes).filter(
+    (v) => v !== null && v !== undefined
+  ).length
 
   return (
     <div
@@ -68,7 +78,15 @@ function ListingCard({
         <div className="card-info">
           <div className="card-name">{listing.name}</div>
           {listing.address && (
-            <div className="card-address">{listing.address}</div>
+            <a
+              className="card-address"
+              href={mapsUrl(listing.address)}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {listing.address}
+            </a>
           )}
         </div>
         <div className="card-score-area">
@@ -77,8 +95,8 @@ function ListingCard({
               {Math.round(listing.score)}
             </div>
           )}
-          <div className="card-completeness">
-            {completeParts}/{totalReqs}
+          <div className="card-completeness" title={`${filledCount} of ${allReqCount} requirements have data`}>
+            {filledCount}/{allReqCount}
           </div>
           {listing.status !== 'complete' && listing.status !== 'error' && (
             <div className="card-spinner" title={listing.status} />
@@ -89,8 +107,8 @@ function ListingCard({
         {keyReqs.map((req) => {
           const val = listing.attributes[req.key]
           return (
-            <span key={req.key} className="stat-pill" data-type={req.type}>
-              <span className="stat-label">{req.label}</span>
+            <span key={req.key} className="stat-pill" data-type={req.type} title={req.label}>
+              <span className="stat-label">{shortLabel(req.label)}</span>
               <span className="stat-value">{formatValue(val, req)}</span>
             </span>
           )
@@ -98,6 +116,11 @@ function ListingCard({
       </div>
     </div>
   )
+}
+
+function shortLabel(label: string): string {
+  if (label.length <= 12) return label
+  return label.slice(0, 10) + '..'
 }
 
 function formatValue(val: unknown, req: Requirement): string {

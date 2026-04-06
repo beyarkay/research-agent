@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
@@ -15,17 +15,18 @@ import { RefineForm } from './RefineForm'
 export function ProjectPage() {
   const { id } = useParams<{ id: string }>()
   const [selectedId, setSelectedId] = useState<number | null>(null)
-  const [showLog, setShowLog] = useState(false)
+  const [showLog, setShowLog] = useState(true)
   const [showRefine, setShowRefine] = useState(false)
   const filters = useFilters()
   const { events } = useProjectEvents(id)
+  const queryClient = useQueryClient()
 
   const { data: project } = useQuery({
     queryKey: ['project', id],
     queryFn: () => api.getProject(id!),
     enabled: !!id,
-    refetchInterval: (query) => {
-      const status = query.state.data?.status
+    refetchInterval: () => {
+      const status = project?.status
       return status && status !== 'done' && status !== 'error' ? 3000 : false
     },
   })
@@ -60,6 +61,13 @@ export function ProjectPage() {
     },
   })
 
+  const resumeMutation = useMutation({
+    mutationFn: () => api.resumeProject(id!),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['project', id] })
+    },
+  })
+
   if (!id) return null
 
   const listings = listingsPage?.items ?? []
@@ -67,12 +75,23 @@ export function ProjectPage() {
     ? listings.find((l) => l.id === selectedId) ?? null
     : null
 
+  const canResume = project?.status === 'done' || project?.status === 'error'
+
   return (
     <div className="page project-page">
       <div className="project-page-top">
         <Link to="/" className="back-link">&larr; Projects</Link>
         <ProjectHeader project={project ?? null} stats={stats ?? null} />
         <div className="top-actions">
+          {canResume && (
+            <button
+              className="btn-sm"
+              onClick={() => resumeMutation.mutate()}
+              disabled={resumeMutation.isPending}
+            >
+              {resumeMutation.isPending ? 'Resuming...' : 'Resume'}
+            </button>
+          )}
           <button
             className="btn-sm"
             onClick={() => setShowRefine(!showRefine)}
@@ -83,7 +102,7 @@ export function ProjectPage() {
             className="btn-sm"
             onClick={() => setShowLog(!showLog)}
           >
-            {showLog ? 'Hide Log' : 'Activity Log'}
+            {showLog ? 'Hide Log' : 'Log'}
           </button>
         </div>
       </div>

@@ -220,19 +220,22 @@ body {
 .filter-item input[type="checkbox"] { margin-right: 2px; }
 .numeric-filter { display: flex; gap: 3px; }
 
-/* Split layout */
+/* Split layout — both panels scroll independently */
 .split-layout {
   display: flex;
   gap: 1px;
   background: var(--border);
   border: 1px solid var(--border);
-  min-height: calc(100vh - 160px);
+  height: calc(100vh - 130px);
+  overflow: hidden;
 }
 .split-left {
   width: 38%;
   min-width: 280px;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
   background: var(--bg);
+  overflow: hidden;
 }
 .split-right {
   flex: 1;
@@ -242,12 +245,23 @@ body {
 }
 
 /* Listing list */
+.listing-list {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
 .listing-list-header {
   padding: 4px 8px;
   font-size: 11px;
   color: var(--muted);
   border-bottom: 1px solid var(--border);
   font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+.listing-list-scroll {
+  flex: 1;
+  overflow-y: auto;
 }
 
 .listing-card {
@@ -285,7 +299,10 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-decoration: none;
+  display: block;
 }
+.card-address:hover { color: var(--accent); }
 
 .card-score-area {
   display: flex;
@@ -420,18 +437,31 @@ body {
   gap: 4px;
 }
 .attr-row.hard .attr-label { font-weight: 500; }
+.attr-value {
+  font-size: 13px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  min-width: 70px;
+  text-align: left;
+}
+.attr-value.unknown { color: #bbb; font-weight: 400; }
+.attr-value.fail { color: var(--score-low); }
+.attr-icon {
+  font-size: 12px;
+  width: 14px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.attr-row:not(.hard) .attr-icon { color: var(--muted); }
+.attr-row .attr-value:not(.unknown):not(.fail) + .attr-icon { color: var(--score-high); }
+.attr-row .attr-value.fail + .attr-icon { color: var(--score-low); }
+.attr-row .attr-value.unknown + .attr-icon { color: #bbb; }
 .attr-label {
   font-size: 12px;
   color: var(--muted);
-  min-width: 140px;
+  cursor: help;
 }
 .hard-marker { color: var(--score-low); margin-right: 2px; }
-.attr-value {
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-}
-.attr-value.unknown { color: #bbb; }
-.attr-value.fail { color: var(--score-low); }
 
 /* Fallbacks */
 .fallback-list {

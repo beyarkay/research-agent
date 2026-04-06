@@ -46,6 +46,9 @@ export const api = {
       body: JSON.stringify({ additional_context: additionalContext }),
     }),
 
+  resumeProject: (id: string) =>
+    request<Project>(`/projects/${id}/resume`, { method: 'POST' }),
+
   // Requirements
   getRequirements: (projectId: string) =>
     request<Requirement[]>(`/projects/${projectId}/requirements`),

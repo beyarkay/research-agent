@@ -19,7 +19,10 @@
       "Bash(npm uninstall:*)",
       "Bash(npx vite:*)",
       "Bash(bash scripts/check.sh)",
-      "Bash(bash ../scripts/check.sh)"
+      "Bash(bash ../scripts/check.sh)",
+      "Bash(npx eslint:*)",
+      "Bash(git add:*)",
+      "Bash(git config:*)"
     ]
   }
 }

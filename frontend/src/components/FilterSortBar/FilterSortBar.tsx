@@ -10,10 +10,18 @@ export function FilterSortBar({
   requirements: Requirement[]
   filters: Filters
 }) {
-  if (requirements.length === 0) return null
-
   return (
     <div className="filter-bar">
+      <div className="filter-item">
+        <label>Name</label>
+        <input
+          type="text"
+          value={filters.filters['_name'] ?? ''}
+          placeholder="Search..."
+          onChange={(e) => filters.setFilter('_name', e.target.value || null)}
+        />
+      </div>
+
       {requirements.map((req) => (
         <DynamicFilter key={req.key} requirement={req} filters={filters} />
       ))}
@@ -62,17 +70,20 @@ function DynamicFilter({
   const { key, label, type } = requirement
   const value = filters.filters[key] ?? ''
 
+  const shortLbl = label.length > 18 ? label.slice(0, 15) + '...' : label
+
   switch (type) {
     case 'bool':
       return (
-        <div className="filter-item">
-          <label>{label}</label>
+        <div className="filter-item" title={label}>
+          <label>{shortLbl}</label>
           <select
             value={value}
             onChange={(e) => filters.setFilter(key, e.target.value || null)}
           >
             <option value="">Any</option>
-            <option value="true">Yes</option>
+            <option value="true">Yes + Unknown</option>
+            <option value="strict_true">Yes only</option>
             <option value="false">No</option>
           </select>
         </div>
@@ -81,9 +92,9 @@ function DynamicFilter({
     case 'int':
     case 'float':
       return (
-        <div className="filter-item">
+        <div className="filter-item" title={label}>
           <label>
-            {label}
+            {shortLbl}
             {requirement.unit ? ` (${requirement.unit})` : ''}
           </label>
           <div className="numeric-filter">
@@ -101,8 +112,8 @@ function DynamicFilter({
 
     case 'enum':
       return (
-        <div className="filter-item">
-          <label>{label}</label>
+        <div className="filter-item" title={label}>
+          <label>{shortLbl}</label>
           <select
             value={value}
             onChange={(e) => filters.setFilter(key, e.target.value || null)}
@@ -119,8 +130,8 @@ function DynamicFilter({
 
     case 'text':
       return (
-        <div className="filter-item">
-          <label>{label}</label>
+        <div className="filter-item" title={label}>
+          <label>{shortLbl}</label>
           <input
             type="text"
             value={value}
