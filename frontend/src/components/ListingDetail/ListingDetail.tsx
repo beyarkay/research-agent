@@ -216,7 +216,7 @@ function AttributeRow({
   const tooltip = tooltipParts.join('\n')
 
   return (
-    <div className={`attr-row ${requirement.is_hard ? 'hard' : 'soft'}`} title={tooltip}>
+    <div className={`attr-row ${requirement.is_hard ? 'hard' : 'soft'}`} data-tip={tooltip}>
       <span className={`attr-value ${isNull ? 'unknown' : ''} ${isBoolFail ? 'fail' : ''}`}>
         {formatAttrValue(value, requirement)}
       </span>
@@ -235,7 +235,7 @@ function AttributeRow({
         />
       )}
       {source && (
-        <a className="attr-source" href={source} target="_blank" rel="noopener noreferrer" title={source}>
+        <a className="attr-source" href={source} target="_blank" rel="noopener noreferrer" data-tip={source}>
           src
         </a>
       )}

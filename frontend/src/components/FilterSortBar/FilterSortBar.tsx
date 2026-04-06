@@ -74,7 +74,7 @@ function DynamicFilter({
   switch (type) {
     case 'bool':
       return (
-        <div className="filter-item" title={label}>
+        <div className="filter-item" data-tip={label}>
           <label>{shortLbl}</label>
           <select
             value={value}
@@ -91,7 +91,7 @@ function DynamicFilter({
     case 'int':
     case 'float':
       return (
-        <div className="filter-item" title={label}>
+        <div className="filter-item" data-tip={label}>
           <label>
             {shortLbl}
             {requirement.unit ? ` (${requirement.unit})` : ''}
@@ -111,7 +111,7 @@ function DynamicFilter({
 
     case 'enum':
       return (
-        <div className="filter-item" title={label}>
+        <div className="filter-item" data-tip={label}>
           <label>{shortLbl}</label>
           <select
             value={value}
@@ -129,7 +129,7 @@ function DynamicFilter({
 
     case 'text':
       return (
-        <div className="filter-item" title={label}>
+        <div className="filter-item" data-tip={label}>
           <label>{shortLbl}</label>
           <input
             type="text"

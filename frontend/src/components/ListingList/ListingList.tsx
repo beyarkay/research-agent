@@ -104,11 +104,11 @@ function ListingCard({
               {Math.round(listing.score)}
             </div>
           )}
-          <div className="card-completeness" title={`${filledCount} of ${allReqCount} requirements have data`}>
+          <div className="card-completeness" data-tip={`${filledCount} of ${allReqCount} requirements have data`}>
             {filledCount}/{allReqCount}
           </div>
           {listing.status !== 'complete' && listing.status !== 'error' && (
-            <div className="card-spinner" title={listing.status} />
+            <div className="card-spinner" data-tip={listing.status} />
           )}
         </div>
       </div>
@@ -119,7 +119,7 @@ function ListingCard({
         {keyReqs.map((req) => {
           const val = extractVal(listing.attributes[req.key])
           return (
-            <span key={req.key} className="stat-pill" data-type={req.type} title={req.label}>
+            <span key={req.key} className="stat-pill" data-type={req.type} data-tip={req.label}>
               <span className="stat-label">{shortLabel(req.label)}</span>
               <span className="stat-value">{formatValue(val, req)}</span>
             </span>
