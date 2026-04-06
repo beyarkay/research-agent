@@ -12,6 +12,7 @@ from app.research.prompts import PARSE_SYSTEM, PARSE_USER_TEMPLATE
 class ParseResult:
     parsed_intent: str
     search_locale: str | None
+    origin_address: str | None
     requirements: list[dict[str, object]]
     search_queries: list[str]
     input_tokens: int
@@ -48,6 +49,7 @@ async def parse_prompt(client: AsyncAnthropic, prompt: str) -> ParseResult:
     return ParseResult(
         parsed_intent=data["parsed_intent"],
         search_locale=data.get("search_locale"),
+        origin_address=data.get("origin_address"),
         requirements=data["requirements"],
         search_queries=data["search_queries"],
         input_tokens=response.usage.input_tokens,

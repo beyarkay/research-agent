@@ -11,6 +11,7 @@ async def test_parse_prompt_extracts_requirements(mock_anthropic_client):
     response_data = {
         "parsed_intent": "Find coworking spaces near Sea Point, Cape Town",
         "search_locale": "Cape Town, South Africa",
+        "origin_address": "2 Three Anchor Bay Road, Sea Point, Cape Town",
         "requirements": [
             {
                 "key": "has_printer",
@@ -38,6 +39,7 @@ async def test_parse_prompt_extracts_requirements(mock_anthropic_client):
 
     assert result.parsed_intent == "Find coworking spaces near Sea Point, Cape Town"
     assert result.search_locale == "Cape Town, South Africa"
+    assert result.origin_address == "2 Three Anchor Bay Road, Sea Point, Cape Town"
     assert len(result.requirements) == 2
     assert result.requirements[0]["key"] == "has_printer"
     assert len(result.search_queries) == 2

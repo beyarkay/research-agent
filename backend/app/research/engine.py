@@ -11,6 +11,7 @@ from app.database import get_db
 from app.models import Requirement
 from app.research.deep import deep_research
 from app.research.fallback import resolve_fallback
+from app.research.maps import enrich_listings_with_distances
 from app.research.parse import parse_prompt
 from app.research.score import compute_scores
 from app.research.wide import deduplicate_options, wide_search
@@ -127,8 +128,8 @@ async def run_research(project_id: str) -> None:
             db = await get_db()
             try:
                 await db.execute(
-                    "UPDATE projects SET parsed_intent = ?, search_locale = ? WHERE id = ?",
-                    (result.parsed_intent, result.search_locale, project_id),
+                    "UPDATE projects SET parsed_intent = ?, search_locale = ?, origin_address = ? WHERE id = ?",
+                    (result.parsed_intent, result.search_locale, result.origin_address, project_id),
                 )
                 for i, req in enumerate(result.requirements):
                     enum_opts = json.dumps(req.get("enum_options")) if req.get("enum_options") else None
@@ -435,6 +436,37 @@ async def run_research(project_id: str) -> None:
 
             deep_tasks = [_run_deep(listing) for listing in undone]
             await asyncio.gather(*deep_tasks)
+
+        # --- Phase 3.5: Google Maps distance enrichment ---
+        if settings.google_maps_api_key:
+            db = await get_db()
+            try:
+                cursor = await db.execute(
+                    "SELECT origin_address, search_locale FROM projects WHERE id = ?",
+                    (project_id,),
+                )
+                proj_row = await cursor.fetchone()
+            finally:
+                await db.close()
+
+            origin = proj_row["origin_address"] or proj_row["search_locale"]
+            await emit_event(
+                project_id,
+                "phase_change",
+                {
+                    "phase": "maps",
+                    "message": f"Enriching with Google Maps distances from: {origin[:60]}",
+                },
+            )
+            maps_count = await enrich_listings_with_distances(project_id, origin)
+            await emit_event(
+                project_id,
+                "maps_complete",
+                {
+                    "updated": maps_count,
+                    "message": f"Updated {maps_count} listings with real drive times",
+                },
+            )
 
         # --- Phase 4: Fallback resolution ---
         await _set_status(project_id, "resolving")

@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS projects (
     prompt TEXT NOT NULL,
     parsed_intent TEXT,
     search_locale TEXT,
+    origin_address TEXT,
     status TEXT NOT NULL DEFAULT 'pending'
 );
 

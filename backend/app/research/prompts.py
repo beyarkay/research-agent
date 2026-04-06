@@ -30,6 +30,7 @@ Respond with a JSON object matching this schema:
 {{
   "parsed_intent": "one-sentence summary of what the user is looking for",
   "search_locale": "geographic area if applicable, or null",
+  "origin_address": "specific starting address for distance calculations, or null",
   "requirements": [
     {{
       "key": "machine_name",
