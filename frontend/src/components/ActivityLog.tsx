@@ -62,6 +62,12 @@ function formatEventData(e: EventMessage): string {
     case 'listing_discovered':
       return `Found: ${e.data.name}${e.data.url ? ` (${e.data.url})` : ''}`
 
+    case 'dedup_complete': {
+      const removed = (e.data.removed_names as string[]) ?? []
+      if (removed.length === 0) return `No duplicates found`
+      return `Removed ${e.data.removed} duplicates (${e.data.groups} groups): ${removed.join(', ')}`
+    }
+
     case 'deep_started': {
       const names = (e.data.names as string[]) ?? []
       return `Starting deep research on ${e.data.total} listings: ${names.join(', ')}`

@@ -80,7 +80,7 @@ function ListingCard({
 
   return (
     <div
-      className={`listing-card ${selected ? 'selected' : ''} ${listing.hard_pass ? 'failed' : ''} ${listing.status === 'error' ? 'errored' : ''} ${userClass}`}
+      className={`listing-card ${selected ? 'selected' : ''} ${listing.hard_pass ? 'failed' : ''} ${listing.status === 'error' ? 'errored' : ''} ${listing.status === 'duplicate' ? 'duplicate' : ''} ${userClass}`}
       onClick={onClick}
     >
       <div className="card-top">
@@ -99,6 +99,9 @@ function ListingCard({
           )}
           {listing.status === 'error' && (
             <div className="card-error">Research failed</div>
+          )}
+          {listing.status === 'duplicate' && (
+            <div className="card-duplicate">Duplicate</div>
           )}
         </div>
         <div className="card-score-area">

@@ -62,8 +62,10 @@ export function useProjectEvents(projectId: string | undefined) {
       'search_executed',
       'search_error',
       'parse_complete',
+      'dedup_complete',
       'deep_started',
       'deep_researching',
+      'maps_complete',
       'error',
       'complete',
     ]

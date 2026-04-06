@@ -9,6 +9,7 @@ from app.api.projects import emit_event
 from app.config import settings
 from app.database import get_db
 from app.models import Requirement
+from app.research.dedup import deduplicate_listings
 from app.research.deep import deep_research
 from app.research.fallback import resolve_fallback
 from app.research.maps import enrich_listings_with_distances
@@ -322,6 +323,81 @@ async def run_research(project_id: str) -> None:
                 await db.commit()
             finally:
                 await db.close()
+
+        # --- Phase 2.5: LLM deduplication ---
+        db = await get_db()
+        try:
+            cursor = await db.execute(
+                "SELECT id, name, url, address FROM listings WHERE project_id = ? AND status = 'discovered'",
+                (project_id,),
+            )
+            discovered = [
+                {"id": r["id"], "name": r["name"], "url": r["url"], "address": r["address"]}
+                for r in await cursor.fetchall()
+            ]
+        finally:
+            await db.close()
+
+        if len(discovered) > 1:
+            await emit_event(
+                project_id,
+                "phase_change",
+                {
+                    "phase": "deduplicating",
+                    "message": f"Deduplicating {len(discovered)} listings with LLM...",
+                },
+            )
+            dedup_result = await deduplicate_listings(client, discovered)
+            await _log_llm_call(
+                project_id,
+                "dedup",
+                settings.model,
+                dedup_result["input_tokens"],
+                dedup_result["output_tokens"],
+                dedup_result["duration_ms"],
+                "LLM deduplication",
+            )
+
+            remove_ids = dedup_result["remove_ids"]
+            if remove_ids:
+                db = await get_db()
+                try:
+                    for rid in remove_ids:
+                        await db.execute(
+                            "UPDATE listings SET status = 'duplicate' WHERE id = ?",
+                            (rid,),
+                        )
+                    await db.commit()
+                finally:
+                    await db.close()
+
+                groups = dedup_result["groups"]
+                removed_names = []
+                for g in groups:
+                    dup_names = [d["name"] for d in discovered if d["id"] in g.get("duplicate_ids", [])]
+                    removed_names.extend(dup_names)
+
+                await emit_event(
+                    project_id,
+                    "dedup_complete",
+                    {
+                        "removed": len(remove_ids),
+                        "kept": len(dedup_result["keep_ids"]),
+                        "groups": len(groups),
+                        "removed_names": removed_names,
+                    },
+                )
+            else:
+                await emit_event(
+                    project_id,
+                    "dedup_complete",
+                    {
+                        "removed": 0,
+                        "kept": len(discovered),
+                        "groups": 0,
+                        "removed_names": [],
+                    },
+                )
 
         # --- Phase 3: Deep research (only on undone listings) ---
         await _set_status(project_id, "researching")

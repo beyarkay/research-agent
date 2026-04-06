@@ -301,6 +301,12 @@ body {
 .listing-card.minimized { opacity: 0.3; font-size: 11px; }
 .listing-card.minimized .card-stats { display: none; }
 .listing-card.errored { border-left: 3px solid var(--score-low); }
+.listing-card.duplicate { opacity: 0.3; }
+.card-duplicate {
+  font-size: 10px;
+  color: var(--muted);
+  font-style: italic;
+}
 .card-error {
   font-size: 10px;
   color: var(--score-low);
