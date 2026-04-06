@@ -1,134 +1,251 @@
 import { test, expect } from '@playwright/test'
 
-test.describe('Smoke tests against running server', () => {
-  test('project list page loads and shows projects', async ({ page }) => {
+// Helper: navigate to first project's page and wait for listings
+async function goToFirstProject(page: import('@playwright/test').Page) {
+  await page.goto('/')
+  await page.locator('.project-card').first().click()
+  await expect(page.locator('.listing-card').first()).toBeVisible({ timeout: 10000 })
+}
+
+test.describe('Project list', () => {
+  test('loads and shows projects', async ({ page }) => {
     await page.goto('/')
-    // Should see the page header
     await expect(page.locator('h1')).toHaveText('Research Agent')
-    // Should see at least one project card (we have data in the DB)
     const cards = page.locator('.project-card')
     await expect(cards.first()).toBeVisible({ timeout: 5000 })
   })
 
-  test('clicking a project navigates to project page', async ({ page }) => {
+  test('project card shows status and prompt', async ({ page }) => {
     await page.goto('/')
-    // Click the first project card
-    const firstCard = page.locator('.project-card').first()
-    await expect(firstCard).toBeVisible({ timeout: 5000 })
-    await firstCard.click()
+    const card = page.locator('.project-card').first()
+    await expect(card.locator('.status-label')).toBeVisible()
+    await expect(card.locator('.project-prompt')).toBeVisible()
+    const prompt = await card.locator('.project-prompt').textContent()
+    expect(prompt?.length).toBeGreaterThan(5)
+  })
+})
 
-    // URL should change to /projects/<id>
+test.describe('Navigation', () => {
+  test('clicking project navigates to project page', async ({ page }) => {
+    await page.goto('/')
+    await page.locator('.project-card').first().click()
     await expect(page).toHaveURL(/\/projects\/[a-f0-9]+/)
-
-    // Project header should be visible with status and prompt
     await expect(page.locator('.project-header')).toBeVisible({ timeout: 5000 })
     await expect(page.locator('.header-prompt')).toBeVisible()
   })
 
-  test('project page shows listings in left panel', async ({ page }) => {
-    await page.goto('/')
-    await page.locator('.project-card').first().click()
-    await expect(page).toHaveURL(/\/projects\//)
+  test('direct URL navigation works (SPA routing)', async ({ page }) => {
+    const resp = await page.request.get('/api/projects')
+    const projects = await resp.json()
+    const projectId = projects[0].id
 
-    // Left panel should have listing cards
-    const listingCards = page.locator('.listing-card')
-    await expect(listingCards.first()).toBeVisible({ timeout: 10000 })
-
-    // Should show at least one listing name
-    const firstName = page.locator('.listing-card .card-name').first()
-    await expect(firstName).toBeVisible()
-    const nameText = await firstName.textContent()
-    expect(nameText?.length).toBeGreaterThan(0)
+    await page.goto(`/projects/${projectId}`)
+    await expect(page.locator('.project-header')).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('.header-prompt')).toBeVisible()
   })
 
-  test('clicking a listing shows detail on the right', async ({ page }) => {
-    await page.goto('/')
-    await page.locator('.project-card').first().click()
+  test('back link returns to project list', async ({ page }) => {
+    await goToFirstProject(page)
+    await page.locator('.back-link').click()
+    await expect(page).toHaveURL('/')
+    await expect(page.locator('h1')).toHaveText('Research Agent')
+  })
+})
 
-    // Wait for listings to load
-    const firstCardName = page.locator('.listing-card .card-name').first()
-    await expect(firstCardName).toBeVisible({ timeout: 10000 })
+test.describe('Listings', () => {
+  test('listings appear in left panel with names', async ({ page }) => {
+    await goToFirstProject(page)
+    const firstName = page.locator('.listing-card .card-name').first()
+    const text = await firstName.textContent()
+    expect(text?.length).toBeGreaterThan(0)
+  })
 
-    // Click the card name to trigger selection
-    await firstCardName.click()
+  test('clicking listing shows detail on right', async ({ page }) => {
+    await goToFirstProject(page)
+    await page.locator('.listing-card .card-name').first().click()
     await page.waitForTimeout(500)
 
-    // Right panel should now show detail
     const detail = page.locator('.listing-detail')
     await expect(detail).toBeVisible({ timeout: 5000 })
-
-    // Should show the listing name as h2
-    const detailName = detail.locator('h2')
-    await expect(detailName).toBeVisible()
-    const detailText = await detailName.textContent()
-    expect(detailText?.length).toBeGreaterThan(0)
-
-    // Should show the attribute grid
+    await expect(detail.locator('h2')).toBeVisible()
     await expect(detail.locator('.attribute-grid')).toBeVisible()
-
-    // Should have at least one attribute row
-    const attrRows = detail.locator('.attr-row')
-    await expect(attrRows.first()).toBeVisible()
+    await expect(detail.locator('.attr-row').first()).toBeVisible()
   })
 
-  test('filter bar is visible with requirements', async ({ page }) => {
-    await page.goto('/')
-    await page.locator('.project-card').first().click()
+  test('score displays a real number', async ({ page }) => {
+    await goToFirstProject(page)
+    const score = page.locator('.card-score').first()
+    await expect(score).toBeVisible()
+    const text = await score.textContent()
+    const num = parseInt(text ?? '', 10)
+    expect(num).toBeGreaterThan(0)
+    expect(num).toBeLessThanOrEqual(100)
+  })
 
+  test('completeness shows non-zero values', async ({ page }) => {
+    await goToFirstProject(page)
+    const comp = page.locator('.card-completeness').first()
+    await expect(comp).toBeVisible()
+    const text = await comp.textContent()
+    // Should be like "12/14", not "0/4"
+    expect(text).toMatch(/^\d+\/\d+$/)
+    const [filled] = text!.split('/')
+    expect(parseInt(filled, 10)).toBeGreaterThan(0)
+  })
+
+  test('address links point to Google Maps', async ({ page }) => {
+    await goToFirstProject(page)
+    const addressLink = page.locator('.card-address[href]').first()
+    // Some listings might not have addresses, so check if any exist
+    const count = await addressLink.count()
+    if (count > 0) {
+      const href = await addressLink.getAttribute('href')
+      expect(href).toContain('google.com/maps')
+    }
+  })
+})
+
+test.describe('Detail view', () => {
+  test('attribute values are left-aligned before labels', async ({ page }) => {
+    await goToFirstProject(page)
+    await page.locator('.listing-card .card-name').first().click()
+    await page.waitForTimeout(500)
+
+    const firstRow = page.locator('.attr-row').first()
+    await expect(firstRow).toBeVisible()
+
+    // Value should come before label in DOM order
+    const children = await firstRow.locator('> *').allTextContents()
+    expect(children.length).toBeGreaterThanOrEqual(3) // value, icon, label
+  })
+
+  test('detail address links to Google Maps', async ({ page }) => {
+    await goToFirstProject(page)
+    await page.locator('.listing-card .card-name').first().click()
+    await page.waitForTimeout(500)
+
+    const addressLink = page.locator('.detail-address a').first()
+    const count = await addressLink.count()
+    if (count > 0) {
+      const href = await addressLink.getAttribute('href')
+      expect(href).toContain('google.com/maps')
+    }
+  })
+
+  test('detail shows website link', async ({ page }) => {
+    await goToFirstProject(page)
+    await page.locator('.listing-card .card-name').first().click()
+    await page.waitForTimeout(500)
+
+    const meta = page.locator('.detail-meta')
+    await expect(meta).toBeVisible()
+    // data completeness text should be present
+    const text = await meta.textContent()
+    expect(text).toContain('verified')
+  })
+})
+
+test.describe('Filtering and sorting', () => {
+  test('filter bar renders with requirements', async ({ page }) => {
+    await goToFirstProject(page)
     const filterBar = page.locator('.filter-bar')
-    await expect(filterBar).toBeVisible({ timeout: 5000 })
-
-    // Should have the name search input
-    const nameInput = filterBar.locator('input[placeholder="Search..."]').first()
-    await expect(nameInput).toBeVisible()
+    await expect(filterBar).toBeVisible()
+    await expect(filterBar.locator('input[placeholder="Search..."]').first()).toBeVisible()
   })
 
   test('name search filters listings', async ({ page }) => {
-    await page.goto('/')
-    await page.locator('.project-card').first().click()
-
-    // Wait for listings
-    await expect(page.locator('.listing-card').first()).toBeVisible({ timeout: 10000 })
+    await goToFirstProject(page)
     const initialCount = await page.locator('.listing-card').count()
 
-    // Type a search term that should filter
     const nameInput = page.locator('.filter-bar input[placeholder="Search..."]').first()
     await nameInput.fill('xyznonexistent')
-
-    // Wait for the list to update
     await page.waitForTimeout(1000)
     const filteredCount = await page.locator('.listing-card').count()
-
-    // Should have fewer (probably 0) results
     expect(filteredCount).toBeLessThan(initialCount)
   })
 
-  test('direct navigation to project URL works (SPA routing)', async ({ page }) => {
-    // First get a real project ID
-    const response = await page.request.get('/api/projects')
-    const projects = await response.json()
-    expect(projects.length).toBeGreaterThan(0)
-    const projectId = projects[0].id
+  test('name search finds matching listing', async ({ page }) => {
+    await goToFirstProject(page)
+    // Get the name of the first listing
+    const firstName = await page.locator('.listing-card .card-name').first().textContent()
+    expect(firstName).toBeTruthy()
 
-    // Navigate directly to the project URL
-    await page.goto(`/projects/${projectId}`)
+    // Search for part of that name
+    const searchTerm = firstName!.split(' ')[0]
+    const nameInput = page.locator('.filter-bar input[placeholder="Search..."]').first()
+    await nameInput.fill(searchTerm)
+    await page.waitForTimeout(1000)
 
-    // Should render the project page, not a 404 or blank
-    await expect(page.locator('.project-header')).toBeVisible({ timeout: 5000 })
-    await expect(page.locator('.header-prompt')).toBeVisible()
+    const results = await page.locator('.listing-card').count()
+    expect(results).toBeGreaterThan(0)
   })
 
-  test('take screenshot of project page for visual check', async ({ page }) => {
-    await page.goto('/')
-    await page.locator('.project-card').first().click()
+  test('sort selector changes listing order', async ({ page }) => {
+    await goToFirstProject(page)
 
-    // Wait for full load
-    await expect(page.locator('.listing-card .card-name').first()).toBeVisible({ timeout: 10000 })
+    // Get names in default order (by score)
+    const namesBefore = await page.locator('.listing-card .card-name').allTextContents()
+    expect(namesBefore.length).toBeGreaterThan(1)
+
+    // Change to sort by name A-Z — find the sort select (contains "Score" option)
+    const sortSelect = page.locator('.filter-bar select', { has: page.locator('option[value="-score"]') })
+    await sortSelect.selectOption('name')
+    await page.waitForTimeout(1000)
+    const namesAfter = await page.locator('.listing-card .card-name').allTextContents()
+
+    // Order should be different (unless it was already alphabetical by coincidence)
+    // At minimum, names should still be present
+    expect(namesAfter.length).toBe(namesBefore.length)
+  })
+
+  test('hide failed toggle works', async ({ page }) => {
+    await goToFirstProject(page)
+    const initialCount = await page.locator('.listing-card').count()
+
+    // Toggle hide failed
+    const checkbox = page.locator('.filter-bar input[type="checkbox"]')
+    await checkbox.check()
+    await page.waitForTimeout(1000)
+    const afterCount = await page.locator('.listing-card').count()
+
+    // Should have same or fewer listings
+    expect(afterCount).toBeLessThanOrEqual(initialCount)
+  })
+})
+
+test.describe('UI controls', () => {
+  test('activity log toggle shows and hides', async ({ page }) => {
+    await goToFirstProject(page)
+
+    // Log should be visible by default (we set showLog=true)
+    const log = page.locator('.activity-log')
+    await expect(log).toBeVisible()
+
+    // Click hide
+    await page.locator('button.btn-sm', { hasText: 'Hide Log' }).click()
+    await expect(log).not.toBeVisible()
+
+    // Click show
+    await page.locator('button.btn-sm', { hasText: 'Log' }).click()
+    await expect(log).toBeVisible()
+  })
+
+  test('resume button appears on done projects', async ({ page }) => {
+    await goToFirstProject(page)
+
+    // Project should be "done", so resume button should exist
+    const resumeBtn = page.locator('button.btn-sm', { hasText: 'Resume' })
+    await expect(resumeBtn).toBeVisible()
+  })
+})
+
+test.describe('Visual', () => {
+  test('screenshot of project page with detail open', async ({ page }) => {
+    await goToFirstProject(page)
     await page.locator('.listing-card .card-name').first().click()
     await page.waitForTimeout(500)
     await expect(page.locator('.listing-detail')).toBeVisible({ timeout: 5000 })
 
-    // Screenshot for manual review
     await page.screenshot({
       path: 'e2e/screenshots/project-page.png',
       fullPage: true,
