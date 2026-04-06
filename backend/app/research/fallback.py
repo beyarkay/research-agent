@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from anthropic import AsyncAnthropic
 
 from app.config import settings
-from app.research.prompts import FALLBACK_SYSTEM
+from app.research.prompts import FALLBACK_SYSTEM, with_date
 from app.research.wide import WEB_SEARCH_TOOL
 
 
@@ -50,7 +50,7 @@ async def resolve_fallback(
     response = await client.messages.create(
         model=settings.model,
         max_tokens=4096,
-        system=system,
+        system=with_date(system),
         messages=[
             {
                 "role": "user",

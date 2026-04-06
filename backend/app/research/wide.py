@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from anthropic import AsyncAnthropic
 
 from app.config import settings
-from app.research.prompts import WIDE_SYSTEM
+from app.research.prompts import WIDE_SYSTEM, with_date
 
 WEB_SEARCH_TOOL = {"type": "web_search_20250305", "name": "web_search", "max_uses": 5}
 
@@ -53,7 +53,7 @@ async def wide_search(
     response = await client.messages.create(
         model=settings.model,
         max_tokens=8192,
-        system=system,
+        system=with_date(system),
         messages=[{"role": "user", "content": f"Search for: {query}"}],
         tools=[WEB_SEARCH_TOOL],
     )

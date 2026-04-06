@@ -1,3 +1,12 @@
+import datetime
+
+
+def with_date(system: str) -> str:
+    """Prepend today's date to a system prompt."""
+    today = datetime.date.today().strftime("%Y-%m-%d")
+    return f"Today's date is {today}. Search for current/recent information.\n\n{system}"
+
+
 PARSE_SYSTEM = """\
 You are a research planning assistant. The user will give you a research prompt
 describing what they're looking for (e.g., coworking spaces, apartments, restaurants, jobs).

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from anthropic import AsyncAnthropic
 
 from app.config import settings
-from app.research.prompts import PARSE_SYSTEM, PARSE_USER_TEMPLATE
+from app.research.prompts import PARSE_SYSTEM, PARSE_USER_TEMPLATE, with_date
 
 
 @dataclass
@@ -27,7 +27,7 @@ async def parse_prompt(client: AsyncAnthropic, prompt: str) -> ParseResult:
     response = await client.messages.create(
         model=settings.model,
         max_tokens=4096,
-        system=PARSE_SYSTEM,
+        system=with_date(PARSE_SYSTEM),
         messages=[{"role": "user", "content": user_msg}],
     )
 

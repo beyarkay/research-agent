@@ -6,7 +6,7 @@ from anthropic import AsyncAnthropic
 
 from app.config import settings
 from app.models import Requirement
-from app.research.prompts import DEEP_SYSTEM
+from app.research.prompts import DEEP_SYSTEM, with_date
 from app.research.wide import WEB_SEARCH_TOOL
 
 
@@ -77,7 +77,7 @@ async def deep_research(
     response = await client.messages.create(
         model=settings.model,
         max_tokens=8192,
-        system=DEEP_SYSTEM,
+        system=with_date(DEEP_SYSTEM),
         messages=[{"role": "user", "content": user_content}],
         tools=[WEB_SEARCH_TOOL],
     )
