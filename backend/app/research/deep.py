@@ -7,6 +7,7 @@ from anthropic import AsyncAnthropic
 from app.config import settings
 from app.models import Requirement
 from app.research.prompts import DEEP_SYSTEM
+from app.research.wide import WEB_SEARCH_TOOL
 
 
 @dataclass
@@ -33,6 +34,22 @@ def _build_attributes_prompt(requirements: list[Requirement]) -> str:
     return "\n".join(lines)
 
 
+def _extract_text(response) -> str:
+    parts = []
+    for block in response.content:
+        if block.type == "text":
+            parts.append(block.text)
+    return "\n".join(parts)
+
+
+def _extract_json(text: str) -> dict:
+    if "```json" in text:
+        text = text.split("```json")[1].split("```")[0]
+    elif "```" in text:
+        text = text.split("```")[1].split("```")[0]
+    return json.loads(text.strip())
+
+
 async def deep_research(
     client: AsyncAnthropic,
     name: str,
@@ -50,52 +67,21 @@ async def deep_research(
         + f"\n\nFill in these attributes:\n{attrs_prompt}"
     )
 
-    total_input = 0
-    total_output = 0
-    messages: list[dict[str, object]] = [{"role": "user", "content": user_content}]
-
-    while True:
-        response = await client.messages.create(
-            model=settings.model,
-            max_tokens=4096,
-            system=DEEP_SYSTEM,
-            messages=messages,
-            tools=[{"type": "web_search_20250305"}],
-        )
-        total_input += response.usage.input_tokens
-        total_output += response.usage.output_tokens
-
-        if response.stop_reason == "tool_use":
-            messages.append({"role": "assistant", "content": response.content})
-            tool_results = []
-            for block in response.content:
-                if block.type == "tool_use":
-                    tool_results.append(
-                        {
-                            "type": "tool_result",
-                            "tool_use_id": block.id,
-                            "content": "Search completed. Please continue.",
-                        }
-                    )
-            messages.append({"role": "user", "content": tool_results})
-        else:
-            break
+    # Server-side web search: one call, Claude handles search internally
+    response = await client.messages.create(
+        model=settings.model,
+        max_tokens=8192,
+        system=DEEP_SYSTEM,
+        messages=[{"role": "user", "content": user_content}],
+        tools=[WEB_SEARCH_TOOL],
+    )
 
     duration_ms = int((time.monotonic() - start) * 1000)
-
-    text = ""
-    for block in response.content:
-        if block.type == "text":
-            text += block.text
-
-    if "```json" in text:
-        text = text.split("```json")[1].split("```")[0]
-    elif "```" in text:
-        text = text.split("```")[1].split("```")[0]
+    text = _extract_text(response)
 
     try:
-        data = json.loads(text.strip())
-    except json.JSONDecodeError:
+        data = _extract_json(text)
+    except (json.JSONDecodeError, ValueError):
         data = {}
 
     return DeepResult(
@@ -104,7 +90,7 @@ async def deep_research(
         summary=data.get("summary"),
         image_url=data.get("image_url"),
         raw_notes=data.get("raw_notes"),
-        input_tokens=total_input,
-        output_tokens=total_output,
+        input_tokens=response.usage.input_tokens,
+        output_tokens=response.usage.output_tokens,
         duration_ms=duration_ms,
     )

@@ -479,7 +479,7 @@ body {
   margin-top: 8px;
   border-top: 1px solid var(--border);
   padding-top: 6px;
-  max-height: 200px;
+  max-height: 300px;
   overflow-y: auto;
 }
 .activity-log h3 {
@@ -493,15 +493,19 @@ body {
 .log-entry {
   display: flex;
   gap: 8px;
-  padding: 1px 0;
+  padding: 2px 0;
   border-bottom: 1px solid #f8f8f0;
 }
+.log-entry.log-error { background: #fef2f2; }
+.log-entry.log-error .log-event { color: var(--score-low); }
+.log-entry.log-success { background: #f0fdf4; }
+.log-entry.log-success .log-event { color: var(--score-high); }
 .log-event {
   color: var(--accent);
-  min-width: 120px;
+  min-width: 140px;
   flex-shrink: 0;
 }
-.log-data { color: var(--muted); }
+.log-data { color: var(--fg); word-break: break-word; }
 
 /* Utilities */
 .loading, .empty {

@@ -6,6 +6,7 @@ from anthropic import AsyncAnthropic
 
 from app.config import settings
 from app.research.prompts import FALLBACK_SYSTEM
+from app.research.wide import WEB_SEARCH_TOOL
 
 
 @dataclass
@@ -14,6 +15,22 @@ class FallbackResult:
     input_tokens: int
     output_tokens: int
     duration_ms: int
+
+
+def _extract_text(response) -> str:
+    parts = []
+    for block in response.content:
+        if block.type == "text":
+            parts.append(block.text)
+    return "\n".join(parts)
+
+
+def _extract_json(text: str) -> dict:
+    if "```json" in text:
+        text = text.split("```json")[1].split("```")[0]
+    elif "```" in text:
+        text = text.split("```")[1].split("```")[0]
+    return json.loads(text.strip())
 
 
 async def resolve_fallback(
@@ -29,63 +46,32 @@ async def resolve_fallback(
     )
     start = time.monotonic()
 
-    total_input = 0
-    total_output = 0
-    messages: list[dict[str, object]] = [
-        {
-            "role": "user",
-            "content": f"Find nearby alternatives for: {requirement_label}",
-        }
-    ]
-
-    while True:
-        response = await client.messages.create(
-            model=settings.model,
-            max_tokens=2048,
-            system=system,
-            messages=messages,
-            tools=[{"type": "web_search_20250305"}],
-        )
-        total_input += response.usage.input_tokens
-        total_output += response.usage.output_tokens
-
-        if response.stop_reason == "tool_use":
-            messages.append({"role": "assistant", "content": response.content})
-            tool_results = []
-            for block in response.content:
-                if block.type == "tool_use":
-                    tool_results.append(
-                        {
-                            "type": "tool_result",
-                            "tool_use_id": block.id,
-                            "content": "Search completed. Please continue.",
-                        }
-                    )
-            messages.append({"role": "user", "content": tool_results})
-        else:
-            break
+    # Server-side web search: one call
+    response = await client.messages.create(
+        model=settings.model,
+        max_tokens=4096,
+        system=system,
+        messages=[
+            {
+                "role": "user",
+                "content": f"Find nearby alternatives for: {requirement_label}",
+            }
+        ],
+        tools=[WEB_SEARCH_TOOL],
+    )
 
     duration_ms = int((time.monotonic() - start) * 1000)
-
-    text = ""
-    for block in response.content:
-        if block.type == "text":
-            text += block.text
-
-    if "```json" in text:
-        text = text.split("```json")[1].split("```")[0]
-    elif "```" in text:
-        text = text.split("```")[1].split("```")[0]
+    text = _extract_text(response)
 
     try:
-        data = json.loads(text.strip())
+        data = _extract_json(text)
         alternatives = data.get("alternatives", [])
-    except (json.JSONDecodeError, KeyError):
+    except (json.JSONDecodeError, KeyError, ValueError):
         alternatives = []
 
     return FallbackResult(
         alternatives=alternatives,
-        input_tokens=total_input,
-        output_tokens=total_output,
+        input_tokens=response.usage.input_tokens,
+        output_tokens=response.usage.output_tokens,
         duration_ms=duration_ms,
     )

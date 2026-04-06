@@ -33,3 +33,7 @@ asyncio_mode = "auto"
 filterwarnings = [
     "ignore::RuntimeWarning",
 ]
+markers = [
+    "api_key: tests that require a real Anthropic API key (deselected by default)",
+]
+addopts = "-m 'not api_key'"

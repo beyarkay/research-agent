@@ -58,8 +58,12 @@ export function useProjectEvents(projectId: string | undefined) {
       'phase_change',
       'listing_discovered',
       'listing_updated',
+      'search_started',
       'search_executed',
+      'search_error',
       'parse_complete',
+      'deep_started',
+      'deep_researching',
       'error',
       'complete',
     ]

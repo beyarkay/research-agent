@@ -7,6 +7,8 @@ from anthropic import AsyncAnthropic
 from app.config import settings
 from app.research.prompts import WIDE_SYSTEM
 
+WEB_SEARCH_TOOL = {"type": "web_search_20250305", "name": "web_search", "max_uses": 5}
+
 
 @dataclass
 class WideResult:
@@ -17,12 +19,21 @@ class WideResult:
 
 
 def _extract_text(response) -> str:
-    """Extract text content from a response, handling tool_use agentic loops."""
-    text = ""
+    """Extract all text content blocks from a response."""
+    parts = []
     for block in response.content:
         if block.type == "text":
-            text += block.text
-    return text
+            parts.append(block.text)
+    return "\n".join(parts)
+
+
+def _extract_json(text: str) -> dict:
+    """Extract JSON from text, handling markdown code blocks."""
+    if "```json" in text:
+        text = text.split("```json")[1].split("```")[0]
+    elif "```" in text:
+        text = text.split("```")[1].split("```")[0]
+    return json.loads(text.strip())
 
 
 async def wide_search(
@@ -37,57 +48,29 @@ async def wide_search(
     )
     start = time.monotonic()
 
-    total_input = 0
-    total_output = 0
-    messages: list[dict[str, object]] = [{"role": "user", "content": f"Search for: {query}"}]
-
-    # Agentic loop: keep calling until we get a final text response
-    while True:
-        response = await client.messages.create(
-            model=settings.model,
-            max_tokens=4096,
-            system=system,
-            messages=messages,
-            tools=[{"type": "web_search_20250305"}],
-        )
-        total_input += response.usage.input_tokens
-        total_output += response.usage.output_tokens
-
-        if response.stop_reason == "tool_use":
-            # Append assistant response and tool results
-            messages.append({"role": "assistant", "content": response.content})
-            tool_results = []
-            for block in response.content:
-                if block.type == "tool_use":
-                    tool_results.append(
-                        {
-                            "type": "tool_result",
-                            "tool_use_id": block.id,
-                            "content": "Search completed. Please continue.",
-                        }
-                    )
-            messages.append({"role": "user", "content": tool_results})
-        else:
-            break
+    # Server-side web search: Claude handles the search internally in one call.
+    # No agentic loop needed.
+    response = await client.messages.create(
+        model=settings.model,
+        max_tokens=8192,
+        system=system,
+        messages=[{"role": "user", "content": f"Search for: {query}"}],
+        tools=[WEB_SEARCH_TOOL],
+    )
 
     duration_ms = int((time.monotonic() - start) * 1000)
-
     text = _extract_text(response)
-    if "```json" in text:
-        text = text.split("```json")[1].split("```")[0]
-    elif "```" in text:
-        text = text.split("```")[1].split("```")[0]
 
     try:
-        data = json.loads(text.strip())
+        data = _extract_json(text)
         options = data.get("options", [])
-    except (json.JSONDecodeError, KeyError):
+    except (json.JSONDecodeError, KeyError, ValueError):
         options = []
 
     return WideResult(
         options=options,
-        input_tokens=total_input,
-        output_tokens=total_output,
+        input_tokens=response.usage.input_tokens,
+        output_tokens=response.usage.output_tokens,
         duration_ms=duration_ms,
     )
 
@@ -142,7 +125,6 @@ def _name_similarity(a: str, b: str) -> float:
         return 0.0
     if a == b:
         return 1.0
-    # Simple ratio: 2 * matching_chars / total_chars (similar to difflib)
     len_a, len_b = len(a), len(b)
     matches = 0
     b_used = [False] * len_b

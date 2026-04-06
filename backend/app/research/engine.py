@@ -129,6 +129,11 @@ async def run_research(project_id: str) -> None:
         async def _run_wide(query_text: str, query_id: int):
             async with WIDE_SEMAPHORE:
                 try:
+                    await emit_event(
+                        project_id,
+                        "search_started",
+                        {"query": query_text, "query_id": query_id},
+                    )
                     wr = await wide_search(client, query_text, result.parsed_intent, result.search_locale)
                     await _log_llm_call(
                         project_id,
@@ -148,10 +153,26 @@ async def run_research(project_id: str) -> None:
                         await db2.commit()
                     finally:
                         await db2.close()
-                    await emit_event(project_id, "search_executed", {"query": query_text, "results": len(wr.options)})
+                    option_names = [o.get("name", "?") for o in wr.options]
+                    await emit_event(
+                        project_id,
+                        "search_executed",
+                        {
+                            "query": query_text,
+                            "results": len(wr.options),
+                            "names": option_names,
+                            "tokens": wr.input_tokens + wr.output_tokens,
+                            "duration_s": round(wr.duration_ms / 1000, 1),
+                        },
+                    )
                     return wr.options
-                except Exception:
+                except Exception as exc:
                     logger.exception("Wide search failed for: %s", query_text)
+                    await emit_event(
+                        project_id,
+                        "search_error",
+                        {"query": query_text, "error": str(exc)},
+                    )
                     return []
 
         db = await get_db()
@@ -226,10 +247,21 @@ async def run_research(project_id: str) -> None:
         finally:
             await db.close()
 
+        await emit_event(
+            project_id,
+            "deep_started",
+            {"total": len(listings), "names": [row["name"] for row in listings]},
+        )
+
         async def _run_deep(listing_row):
             async with DEEP_SEMAPHORE:
                 lid = listing_row["id"]
                 try:
+                    await emit_event(
+                        project_id,
+                        "deep_researching",
+                        {"id": lid, "name": listing_row["name"]},
+                    )
                     dr = await deep_research(
                         client,
                         listing_row["name"],
@@ -265,13 +297,19 @@ async def run_research(project_id: str) -> None:
                         await db2.commit()
                     finally:
                         await db2.close()
+                    filled = sum(1 for v in dr.attributes.values() if v is not None)
+                    total_attrs = len(reqs)
                     await emit_event(
                         project_id,
                         "listing_updated",
                         {
                             "id": lid,
+                            "name": listing_row["name"],
                             "status": "complete",
-                            "attributes": dr.attributes,
+                            "filled": f"{filled}/{total_attrs}",
+                            "summary": (dr.summary or "")[:120],
+                            "tokens": dr.input_tokens + dr.output_tokens,
+                            "duration_s": round(dr.duration_ms / 1000, 1),
                         },
                     )
                 except Exception:
