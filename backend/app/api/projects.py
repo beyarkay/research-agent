@@ -20,6 +20,18 @@ def get_event_queues() -> dict[str, list[asyncio.Queue[dict[str, object] | None]
 
 
 async def emit_event(project_id: str, event: str, data: dict[str, object]) -> None:
+    # Persist to DB
+    db = await get_db()
+    try:
+        await db.execute(
+            "INSERT INTO activity_log (project_id, event, data) VALUES (?, ?, ?)",
+            (project_id, event, json.dumps(data)),
+        )
+        await db.commit()
+    finally:
+        await db.close()
+
+    # Push to SSE listeners
     for queue in _event_queues.get(project_id, []):
         await queue.put({"event": event, "data": data})
 
@@ -139,6 +151,28 @@ async def get_project_stats(project_id: str) -> ProjectStatsResponse:
             total_output_tokens=tokens["outp"],
             total_searches=searches["cnt"],
         )
+    finally:
+        await db.close()
+
+
+@router.get("/projects/{project_id}/activity")
+async def get_activity_log(project_id: str) -> list[dict[str, object]]:
+    """Get persisted activity log for a project."""
+    db = await get_db()
+    try:
+        cursor = await db.execute(
+            "SELECT event, data, created_at FROM activity_log WHERE project_id = ? ORDER BY id",
+            (project_id,),
+        )
+        rows = await cursor.fetchall()
+        return [
+            {
+                "event": r["event"],
+                "data": json.loads(r["data"]),
+                "created_at": r["created_at"],
+            }
+            for r in rows
+        ]
     finally:
         await db.close()
 

@@ -41,6 +41,11 @@ export const api = {
   getProjectStats: (id: string) =>
     request<ProjectStats>(`/projects/${id}/stats`),
 
+  getActivityLog: (id: string) =>
+    request<Array<{ event: string; data: Record<string, unknown>; created_at: string }>>(
+      `/projects/${id}/activity`
+    ),
+
   resumeProject: (id: string) =>
     request<Project>(`/projects/${id}/resume`, { method: 'POST' }),
 

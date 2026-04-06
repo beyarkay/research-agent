@@ -23,6 +23,7 @@ async def setup_db():
     # Clean up tables between tests to avoid cross-test pollution
     db = await get_db()
     for table in [
+        "activity_log",
         "llm_calls",
         "fallbacks",
         "search_results",

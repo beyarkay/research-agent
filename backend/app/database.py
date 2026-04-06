@@ -94,6 +94,16 @@ CREATE TABLE IF NOT EXISTS llm_calls (
     created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 
+CREATE TABLE IF NOT EXISTS activity_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    event TEXT NOT NULL,
+    data TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_activity_log_project
+    ON activity_log(project_id);
 CREATE INDEX IF NOT EXISTS idx_listings_project ON listings(project_id);
 CREATE INDEX IF NOT EXISTS idx_listings_score ON listings(project_id, score DESC);
 CREATE INDEX IF NOT EXISTS idx_requirements_project
