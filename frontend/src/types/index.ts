@@ -88,5 +88,7 @@ export interface FilterActions extends FilterState {
   setFilter: (key: string, value: string | null) => void
   setSort: (sort: string) => void
   toggleHideFailed: () => void
+  selectedId: number | null
+  setSelectedId: (id: number | null) => void
   queryParams: Record<string, string>
 }

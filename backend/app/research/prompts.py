@@ -92,6 +92,9 @@ Rules:
 - For numeric attributes, value should be a number (or array for multi-tier)
 - Always include the source URL — prefer the official website
 - Always include the note explaining your reasoning
+- ALWAYS determine the full street address (number + street + suburb + city).
+  Search Google Maps or the venue's contact page if needed. Do NOT return
+  vague locations like "Sea Point, Cape Town" — find the actual street number.
 - Write a 2-3 sentence summary highlighting the most relevant features
 - Include raw research notes listing ALL URLs you checked
 
@@ -102,6 +105,7 @@ Return JSON:
     "key2": null,
     ...
   }},
+  "full_address": "REQUIRED: full street address (number, street, suburb, city, postal code)",
   "summary": "2-3 sentence summary",
   "image_url": "URL to a representative image or null",
   "raw_notes": "Detailed notes including all URLs checked"

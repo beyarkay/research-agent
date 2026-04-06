@@ -395,11 +395,13 @@ async def run_research(project_id: str) -> None:
                         try:
                             await db2.execute(
                                 "UPDATE listings SET attributes = ?, summary = ?, "
+                                "address = COALESCE(?, address), "
                                 "image_url = COALESCE(?, image_url), "
                                 "raw_notes = ?, status = 'complete' WHERE id = ?",
                                 (
                                     json.dumps(dr.attributes),
                                     dr.summary,
+                                    dr.full_address,
                                     dr.image_url,
                                     dr.raw_notes,
                                     lid,

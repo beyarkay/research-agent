@@ -271,9 +271,10 @@ async def add_listing(project_id: str, body: AddListingRequest) -> ListingRespon
         try:
             await db2.execute(
                 "UPDATE listings SET attributes = ?, summary = ?, "
+                "address = COALESCE(?, address), "
                 "image_url = COALESCE(?, image_url), raw_notes = ?, "
                 "status = 'complete' WHERE id = ?",
-                (json.dumps(dr.attributes), dr.summary, dr.image_url, dr.raw_notes, listing_id),
+                (json.dumps(dr.attributes), dr.summary, dr.full_address, dr.image_url, dr.raw_notes, listing_id),
             )
             await db2.commit()
         finally:

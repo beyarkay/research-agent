@@ -14,6 +14,7 @@ from app.research.wide import WEB_SEARCH_TOOL
 class DeepResult:
     attributes: dict[str, object]
     summary: str | None
+    full_address: str | None
     image_url: str | None
     raw_notes: str | None
     input_tokens: int
@@ -88,6 +89,7 @@ async def deep_research(
     return DeepResult(
         attributes=data.get("attributes", {}),
         summary=data.get("summary"),
+        full_address=data.get("full_address"),
         image_url=data.get("image_url"),
         raw_notes=data.get("raw_notes"),
         input_tokens=response.usage.input_tokens,

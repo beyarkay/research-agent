@@ -13,11 +13,11 @@ import { ProjectHeader } from './ProjectHeader'
 
 export function ProjectPage() {
   const { id } = useParams<{ id: string }>()
-  const [selectedId, setSelectedId] = useState<number | null>(null)
   const [showLog, setShowLog] = useState(true)
   const [showAddForm, setShowAddForm] = useState(false)
   const addUrlRef = useRef<HTMLInputElement>(null)
   const filters = useFilters()
+  const { selectedId, setSelectedId } = filters
   const { events } = useProjectEvents(id)
   const queryClient = useQueryClient()
 

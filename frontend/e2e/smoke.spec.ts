@@ -202,9 +202,9 @@ test.describe('Filtering and sorting', () => {
     await goToFirstProject(page)
     const initialCount = await page.locator('.listing-card').count()
 
-    // Toggle hide failed
-    const checkbox = page.locator('.filter-bar input[type="checkbox"]')
-    await checkbox.check()
+    // Toggle hide failed — find the label containing "Hide failed"
+    const label = page.locator('.filter-bar label', { hasText: 'Hide failed' })
+    await label.click()
     await page.waitForTimeout(1000)
     const afterCount = await page.locator('.listing-card').count()
 
