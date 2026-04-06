@@ -1,7 +1,6 @@
 /**
- * Tiny inline SVG histogram showing the distribution of a numeric attribute.
- * The current listing's value is highlighted with a red line.
- * Shows min/max labels and bar tooltips on hover.
+ * Tiny inline SVG histogram with nicely rounded bin edges.
+ * Current listing's value is highlighted with a red line.
  */
 
 interface HistogramProps {
@@ -12,8 +11,18 @@ interface HistogramProps {
   height?: number
 }
 
-const BINS = 10
+const TARGET_BINS = 8
 const LABEL_H = 10
+
+/** Pick a "nice" bin size: 1, 2, 5, 10, 20, 50, 100, 200, 500, ... */
+function niceStep(rawStep: number): number {
+  const mag = Math.pow(10, Math.floor(Math.log10(rawStep)))
+  const norm = rawStep / mag
+  if (norm <= 1) return mag
+  if (norm <= 2) return 2 * mag
+  if (norm <= 5) return 5 * mag
+  return 10 * mag
+}
 
 export function Histogram({
   values,
@@ -24,41 +33,49 @@ export function Histogram({
 }: HistogramProps) {
   if (values.length < 2) return null
 
-  const min = Math.min(...values)
-  const max = Math.max(...values)
-  if (min === max) return null
+  const rawMin = Math.min(...values)
+  const rawMax = Math.max(...values)
+  if (rawMin === rawMax) return null
 
-  const range = max - min
-  const binWidth = range / BINS
-  const bins = new Array(BINS).fill(0) as number[]
+  // Compute nice bin width and snap min/max to bin edges
+  const rawStep = (rawMax - rawMin) / TARGET_BINS
+  const step = niceStep(rawStep)
+  const binMin = Math.floor(rawMin / step) * step
+  const binMax = Math.ceil(rawMax / step) * step
+  const numBins = Math.round((binMax - binMin) / step)
+  const range = binMax - binMin
 
+  const bins = new Array(numBins).fill(0) as number[]
   for (const v of values) {
-    const idx = Math.min(Math.floor((v - min) / binWidth), BINS - 1)
+    const idx = Math.min(Math.floor((v - binMin) / step), numBins - 1)
     bins[idx]++
   }
 
   const maxBin = Math.max(...bins)
-  const barW = width / BINS
+  const barW = width / numBins
   const pad = 1
   const chartH = height - LABEL_H
   const u = unit ? ` ${unit}` : ''
 
-  // Where does the current value fall?
   let markerX: number | null = null
   if (current !== null && current !== undefined) {
-    const frac = (current - min) / range
+    const frac = (current - binMin) / range
     markerX = Math.max(0, Math.min(width, frac * width))
   }
 
-  const fmt = (n: number) => Number.isInteger(n) ? String(n) : n.toFixed(1)
+  const fmt = (n: number) => {
+    if (Number.isInteger(n)) return String(n)
+    if (Math.abs(n) >= 100) return Math.round(n).toString()
+    return n.toFixed(1)
+  }
 
   return (
     <div className="histogram">
       <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
         {bins.map((count, i) => {
           const barH = maxBin > 0 ? (count / maxBin) * (chartH - 2) : 0
-          const lo = min + i * binWidth
-          const hi = lo + binWidth
+          const lo = binMin + i * step
+          const hi = lo + step
           const title = `${count} listing${count !== 1 ? 's' : ''}: ${fmt(lo)}–${fmt(hi)}${u}`
           return (
             <rect
@@ -83,12 +100,11 @@ export function Histogram({
             strokeWidth={2}
           />
         )}
-        {/* Min/max labels */}
         <text x={0} y={height} fontSize={8} fill="#999" textAnchor="start">
-          {fmt(min)}
+          {fmt(binMin)}
         </text>
         <text x={width} y={height} fontSize={8} fill="#999" textAnchor="end">
-          {fmt(max)}{u}
+          {fmt(binMax)}{u}
         </text>
       </svg>
     </div>
