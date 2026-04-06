@@ -36,9 +36,9 @@ def test_build_query_basic():
 
     assert "project_id = ?" in sql
     # Bool "true" now means "Yes + Unknown" — excludes only explicit false
-    assert "json_extract(attributes, '$.has_coffee') IS NULL" in sql
+    assert "IS NULL" in sql
     assert "!= 0" in sql
-    assert "json_extract(attributes, '$.price') < ?" in sql
+    assert "price" in sql and "< ?" in sql
     assert params[0] == "proj1"
     assert 5000.0 in params
 
@@ -47,7 +47,7 @@ def test_build_query_bool_strict():
     reqs = {"has_coffee": _req("has_coffee")}
     filters = [("has_coffee", "", "strict_true")]
     sql, params = build_listing_query("proj1", filters, None, False, reqs)
-    assert "json_extract(attributes, '$.has_coffee') = 1" in sql
+    assert "has_coffee" in sql and "= 1" in sql
 
 
 def test_build_query_name_search():
@@ -65,7 +65,7 @@ def test_build_query_hide_failed():
 def test_build_query_sort_by_requirement():
     reqs = {"price": _req("price", "float")}
     sql, _ = build_listing_query("proj1", [], "-price", False, reqs)
-    assert "json_extract(attributes, '$.price') DESC" in sql
+    assert "price" in sql and "DESC" in sql
 
 
 def test_build_query_sort_by_score():

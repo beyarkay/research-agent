@@ -36,6 +36,16 @@ def cast_value(value: str, req_type: str) -> object:
     return value
 
 
+def _val_expr(key: str) -> str:
+    """SQL expression to extract the value from either plain or structured attributes.
+
+    Handles both:
+      {"key": 42}                          -> json_extract(attributes, '$.key')
+      {"key": {"value": 42, "source": ...}} -> json_extract(attributes, '$.key.value')
+    """
+    return f"COALESCE(json_extract(attributes, '$.{key}.value'), json_extract(attributes, '$.{key}'))"
+
+
 def build_listing_query(
     project_id: str,
     filters: list[tuple[str, str, str]],
@@ -58,24 +68,23 @@ def build_listing_query(
         if req is None:
             continue
 
+        vex = _val_expr(key)
+
         # Special: bool "true" means "Yes OR Unknown" (don't exclude unknowns)
         if req.type == "bool" and value.lower() == "true":
-            # Exclude only explicit false
-            conditions.append(
-                f"(json_extract(attributes, '$.{key}') IS NULL OR json_extract(attributes, '$.{key}') != 0)"
-            )
+            conditions.append(f"({vex} IS NULL OR {vex} != 0)")
             continue
 
         # Special: bool "strict_true" means only verified true
         if req.type == "bool" and value.lower() == "strict_true":
-            conditions.append(f"json_extract(attributes, '$.{key}') = 1")
+            conditions.append(f"{vex} = 1")
             continue
 
         sql_op = OPERATORS.get(op)
         if sql_op is None:
             continue
         casted = cast_value(value, req.type)
-        conditions.append(f"json_extract(attributes, '$.{key}') {sql_op} ?")
+        conditions.append(f"{vex} {sql_op} ?")
         params.append(casted)
 
     if hide_failed:
@@ -96,6 +105,6 @@ def build_listing_query(
         elif sort_key == "data_completeness":
             order = f"data_completeness {direction}"
         elif sort_key in requirements:
-            order = f"json_extract(attributes, '$.{sort_key}') {direction} NULLS LAST"
+            order = f"{_val_expr(sort_key)} {direction} NULLS LAST"
 
     return f"SELECT * FROM listings WHERE {where} ORDER BY {order}", params

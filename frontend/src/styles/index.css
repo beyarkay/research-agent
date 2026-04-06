@@ -462,6 +462,14 @@ body {
   cursor: help;
 }
 .hard-marker { color: var(--score-low); margin-right: 2px; }
+.attr-source {
+  font-size: 10px;
+  color: var(--accent);
+  text-decoration: none;
+  opacity: 0.6;
+  margin-left: auto;
+}
+.attr-source:hover { opacity: 1; text-decoration: underline; }
 
 /* Fallbacks */
 .fallback-list {

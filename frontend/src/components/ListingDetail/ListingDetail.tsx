@@ -7,6 +7,25 @@ function mapsUrl(address: string): string {
   return `https://www.google.com/maps/search/${encodeURIComponent(address)}`
 }
 
+/** Extract value from plain or structured attribute */
+function extractValue(attr: unknown): unknown {
+  if (attr === null || attr === undefined) return null
+  if (typeof attr === 'object' && !Array.isArray(attr) && attr !== null) {
+    const obj = attr as Record<string, unknown>
+    if ('value' in obj) return obj.value
+  }
+  return attr
+}
+
+/** Extract source URL from structured attribute */
+function extractSource(attr: unknown): string | null {
+  if (typeof attr === 'object' && attr !== null && !Array.isArray(attr)) {
+    const obj = attr as Record<string, unknown>
+    if (typeof obj.source === 'string') return obj.source
+  }
+  return null
+}
+
 export function ListingDetail({
   listing,
   requirements,
@@ -21,9 +40,10 @@ export function ListingDetail({
     queryFn: () => api.getFallbacks(projectId, listing.id),
   })
 
-  const filledCount = requirements.filter(
-    (r) => listing.attributes[r.key] !== null && listing.attributes[r.key] !== undefined
-  ).length
+  const filledCount = requirements.filter((r) => {
+    const val = extractValue(listing.attributes[r.key])
+    return val !== null && val !== undefined
+  }).length
 
   return (
     <div className="listing-detail">
@@ -72,7 +92,7 @@ export function ListingDetail({
           <AttributeRow
             key={req.key}
             requirement={req}
-            value={listing.attributes[req.key]}
+            rawAttr={listing.attributes[req.key]}
             fallbacks={fallbacks?.filter((f) => f.requirement_key === req.key) ?? []}
           />
         ))}
@@ -90,13 +110,15 @@ export function ListingDetail({
 
 function AttributeRow({
   requirement,
-  value,
+  rawAttr,
   fallbacks,
 }: {
   requirement: Requirement
-  value: unknown
+  rawAttr: unknown
   fallbacks: Fallback[]
 }) {
+  const value = extractValue(rawAttr)
+  const source = extractSource(rawAttr)
   const isNull = value === null || value === undefined
   const isBoolFail = requirement.type === 'bool' && value === false
 
@@ -112,6 +134,11 @@ function AttributeRow({
         {requirement.is_hard && <span className="hard-marker">*</span>}
         {shortLabel(requirement.label)}
       </span>
+      {source && (
+        <a className="attr-source" href={source} target="_blank" rel="noopener noreferrer" title={source}>
+          src
+        </a>
+      )}
       {fallbacks.length > 0 && (
         <div className="fallback-list">
           {fallbacks.map((fb) => (
@@ -134,13 +161,26 @@ function AttributeRow({
 }
 
 function shortLabel(label: string): string {
-  // Truncate long labels, full text available on hover via title attr
   if (label.length <= 25) return label
   return label.slice(0, 22) + '...'
 }
 
 function formatAttrValue(val: unknown, req: Requirement): string {
-  if (val === null || val === undefined) return '—'
+  if (val === null || val === undefined) return '\u2014'
+
+  // Multi-tier values (array of {tier, amount})
+  if (Array.isArray(val)) {
+    const tiers = val as Array<Record<string, unknown>>
+    return tiers
+      .map((t) => {
+        const amount = t.amount ?? t.price ?? t.value
+        const tier = t.tier ?? t.label ?? t.name ?? ''
+        const unit = req.unit ? ` ${req.unit}` : ''
+        return `${tier}: ${amount}${unit}`
+      })
+      .join(' · ')
+  }
+
   if (req.type === 'bool') return val ? 'Yes' : 'No'
   if (req.type === 'int' || req.type === 'float') {
     const num = Number(val)

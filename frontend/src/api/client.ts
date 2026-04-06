@@ -40,12 +40,6 @@ export const api = {
   getProjectStats: (id: string) =>
     request<ProjectStats>(`/projects/${id}/stats`),
 
-  refineProject: (id: string, additionalContext: string) =>
-    request<Project>(`/projects/${id}/refine`, {
-      method: 'POST',
-      body: JSON.stringify({ additional_context: additionalContext }),
-    }),
-
   resumeProject: (id: string) =>
     request<Project>(`/projects/${id}/resume`, { method: 'POST' }),
 

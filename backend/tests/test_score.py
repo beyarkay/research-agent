@@ -98,3 +98,64 @@ def test_weighted_scoring():
     scores = compute_scores(listings, reqs)
     assert scores[0]["score"] == 75.0  # 3/4 * 100
     assert scores[1]["score"] == 25.0  # 1/4 * 100
+
+
+def test_structured_attributes():
+    """Attributes with {"value": ..., "source": "..."} format."""
+    reqs = [_req("has_coffee"), _req("price", type_="float", direction="lower_better")]
+    listings = [
+        {
+            "id": 1,
+            "attributes": json.dumps(
+                {
+                    "has_coffee": {"value": True, "source": "https://example.com"},
+                    "price": {"value": 3000, "source": "https://example.com/rates"},
+                }
+            ),
+        },
+        {
+            "id": 2,
+            "attributes": json.dumps(
+                {
+                    "has_coffee": {"value": False, "source": "https://other.com"},
+                    "price": {"value": 5000, "source": "https://other.com/rates"},
+                }
+            ),
+        },
+    ]
+    scores = compute_scores(listings, reqs)
+    assert scores[0]["score"] > scores[1]["score"]
+    assert scores[0]["data_completeness"] == 1.0
+
+
+def test_multi_tier_values():
+    """Multi-tier numeric values — should use the lowest amount."""
+    reqs = [_req("price", type_="float", direction="lower_better")]
+    listings = [
+        {
+            "id": 1,
+            "attributes": json.dumps(
+                {
+                    "price": {
+                        "value": [
+                            {"tier": "Hot Desk", "amount": 2500},
+                            {"tier": "Dedicated", "amount": 4500},
+                        ],
+                        "source": "https://example.com/rates",
+                    },
+                }
+            ),
+        },
+        {
+            "id": 2,
+            "attributes": json.dumps(
+                {
+                    "price": {"value": 3000, "source": "https://other.com"},
+                }
+            ),
+        },
+    ]
+    scores = compute_scores(listings, reqs)
+    # Listing 1 has lowest tier at 2500, listing 2 at 3000
+    # Lower is better, so listing 1 should score higher
+    assert scores[0]["score"] > scores[1]["score"]

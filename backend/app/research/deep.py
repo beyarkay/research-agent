@@ -13,7 +13,6 @@ from app.research.wide import WEB_SEARCH_TOOL
 @dataclass
 class DeepResult:
     attributes: dict[str, object]
-    attribute_confidence: dict[str, str]
     summary: str | None
     image_url: str | None
     raw_notes: str | None
@@ -62,12 +61,14 @@ async def deep_research(
 
     user_content = (
         f"Research '{name}'"
-        + (f" ({url})" if url else "")
+        + (f" — official website: {url}" if url else "")
         + (f" at {address}" if address else "")
         + f"\n\nFill in these attributes:\n{attrs_prompt}"
+        + "\n\nIMPORTANT: If a URL is provided, search for and visit that "
+        "website first. Look for their rates/pricing page, amenities page, "
+        "and about page. Then supplement with review sites."
     )
 
-    # Server-side web search: one call, Claude handles search internally
     response = await client.messages.create(
         model=settings.model,
         max_tokens=8192,
@@ -86,7 +87,6 @@ async def deep_research(
 
     return DeepResult(
         attributes=data.get("attributes", {}),
-        attribute_confidence=data.get("attribute_confidence", {}),
         summary=data.get("summary"),
         image_url=data.get("image_url"),
         raw_notes=data.get("raw_notes"),

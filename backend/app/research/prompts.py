@@ -9,7 +9,7 @@ Your job is to:
 
 For each requirement:
 - Assign a machine-readable key (snake_case)
-- Assign a human-readable label
+- Assign a SHORT human-readable label (max ~20 chars, e.g. "Coffee" not "Coffee Machine or Coffee Supplies On-Site")
 - Choose the correct type: bool, int, float, text, or enum
 - Mark whether it's a hard requirement (must-have) or soft (nice-to-have)
 - Assign a weight from 0.0 to 1.0 (importance for scoring)
@@ -33,7 +33,7 @@ Respond with a JSON object matching this schema:
   "requirements": [
     {{
       "key": "machine_name",
-      "label": "Human Label",
+      "label": "Short Label",
       "type": "bool|int|float|text|enum",
       "enum_options": ["opt1", "opt2"] or null,
       "unit": "unit string or null",
@@ -62,35 +62,47 @@ Return JSON:
   ]
 }}"""
 
-DEEP_SYSTEM = """You are a detailed research assistant. Research this specific venue/option thoroughly.
-Fill in every attribute listed below based on what you can find online.
+DEEP_SYSTEM = """\
+You are a detailed research assistant. Research this specific venue/option THOROUGHLY.
+
+IMPORTANT research strategy:
+1. First, find and visit the venue's OFFICIAL WEBSITE
+2. On the official website, look for pricing/rates pages, amenities pages, about pages
+3. Then check review sites (Google Maps, Yelp, etc.) for additional details
+4. If the official website has specific pages for rates/pricing, READ THOSE PAGES
+
+For EACH attribute, return a structured object with:
+- "value": the actual value (use the types specified below)
+- "source": the URL where you found this information
+
+For NUMERIC attributes that have MULTIPLE tiers/options (e.g. different membership prices),
+return the value as an array of objects:
+- "value": [{{"tier": "Hot Desk", "amount": 2500}}, {{"tier": "Dedicated", "amount": 4500}}]
+- "source": "https://..."
 
 Rules:
-- Use web search to find the venue's official website, review sites, and directory listings
-- For each attribute, determine the value as accurately as possible
-- If you CANNOT determine a value after searching, set it to null
-- For boolean attributes, use true/false (not "yes"/"no")
-- For numeric attributes, use numbers (not strings)
-- Include your confidence: "verified" (found on official source), "inferred" (deduced from context), or "unknown"
+- If you CANNOT determine a value after searching, set the entire attribute to null
+- For boolean attributes, value should be true/false
+- For numeric attributes, value should be a number (or array for multi-tier)
+- Always include the source URL — prefer the official website
 - Write a 2-3 sentence summary highlighting the most relevant features
-- Include raw research notes with URLs you checked
+- Include raw research notes listing ALL URLs you checked
 
 Return JSON:
 {{
   "attributes": {{
-    "key": value_or_null,
-    ...
-  }},
-  "attribute_confidence": {{
-    "key": "verified|inferred|unknown",
+    "key": {{"value": ..., "source": "https://..."}},
+    "key2": null,
     ...
   }},
   "summary": "2-3 sentence summary",
   "image_url": "URL to a representative image or null",
-  "raw_notes": "Detailed notes including URLs checked"
+  "raw_notes": "Detailed notes including all URLs checked"
 }}"""
 
-FALLBACK_SYSTEM = """The venue "{venue_name}" at {venue_address} does not satisfy the requirement "{requirement_label}".
+FALLBACK_SYSTEM = """\
+The venue "{venue_name}" at {venue_address} does not satisfy \
+the requirement "{requirement_label}".
 
 Search for nearby alternatives that could satisfy this requirement
 within walking distance (ideally under 500m / 5 minutes walk).

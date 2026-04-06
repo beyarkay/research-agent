@@ -10,13 +10,11 @@ import { FilterSortBar } from './FilterSortBar/FilterSortBar'
 import { ListingDetail } from './ListingDetail/ListingDetail'
 import { ListingList } from './ListingList/ListingList'
 import { ProjectHeader } from './ProjectHeader'
-import { RefineForm } from './RefineForm'
 
 export function ProjectPage() {
   const { id } = useParams<{ id: string }>()
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [showLog, setShowLog] = useState(true)
-  const [showRefine, setShowRefine] = useState(false)
   const filters = useFilters()
   const { events } = useProjectEvents(id)
   const queryClient = useQueryClient()
@@ -94,12 +92,6 @@ export function ProjectPage() {
           )}
           <button
             className="btn-sm"
-            onClick={() => setShowRefine(!showRefine)}
-          >
-            Refine
-          </button>
-          <button
-            className="btn-sm"
             onClick={() => setShowLog(!showLog)}
           >
             {showLog ? 'Hide Log' : 'Log'}
@@ -107,7 +99,7 @@ export function ProjectPage() {
         </div>
       </div>
 
-      {showRefine && <RefineForm projectId={id} onClose={() => setShowRefine(false)} />}
+
 
       <FilterSortBar
         requirements={requirements ?? []}

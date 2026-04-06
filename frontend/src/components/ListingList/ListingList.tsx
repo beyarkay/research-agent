@@ -1,5 +1,14 @@
 import type { Listing, Requirement } from '../../types'
 
+function extractVal(attr: unknown): unknown {
+  if (attr === null || attr === undefined) return null
+  if (typeof attr === 'object' && !Array.isArray(attr)) {
+    const obj = attr as Record<string, unknown>
+    if ('value' in obj) return obj.value
+  }
+  return attr
+}
+
 function mapsUrl(address: string): string {
   return `https://www.google.com/maps/search/${encodeURIComponent(address)}`
 }
@@ -56,10 +65,11 @@ function ListingCard({
   selected: boolean
   onClick: () => void
 }) {
-  // Count filled attributes across ALL requirements, not just displayed ones
-  const filledCount = Object.values(listing.attributes).filter(
-    (v) => v !== null && v !== undefined
-  ).length
+  // Count filled attributes across ALL requirements
+  const filledCount = Object.values(listing.attributes).filter((v) => {
+    const extracted = extractVal(v)
+    return extracted !== null && extracted !== undefined
+  }).length
 
   return (
     <div
@@ -105,7 +115,7 @@ function ListingCard({
       </div>
       <div className="card-stats">
         {keyReqs.map((req) => {
-          const val = listing.attributes[req.key]
+          const val = extractVal(listing.attributes[req.key])
           return (
             <span key={req.key} className="stat-pill" data-type={req.type} title={req.label}>
               <span className="stat-label">{shortLabel(req.label)}</span>

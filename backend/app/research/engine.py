@@ -404,12 +404,6 @@ async def run_research(project_id: str) -> None:
                                     lid,
                                 ),
                             )
-                            if dr.attribute_confidence:
-                                conf_note = "\n\n---CONFIDENCE---\n" + json.dumps(dr.attribute_confidence)
-                                await db2.execute(
-                                    "UPDATE listings SET raw_notes = COALESCE(raw_notes, '') || ? WHERE id = ?",
-                                    (conf_note, lid),
-                                )
                             await db2.commit()
                         finally:
                             await db2.close()

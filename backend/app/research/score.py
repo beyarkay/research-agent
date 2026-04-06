@@ -4,11 +4,41 @@ import json
 from app.models import Requirement
 
 
+def extract_value(attr: object) -> object:
+    """Extract the raw value from an attribute that may be structured.
+
+    Attributes can be:
+    - Plain values: true, 42, "hello"
+    - Structured: {"value": 42, "source": "https://..."}
+    - Multi-tier: {"value": [{"tier": "Hot Desk", "amount": 2500}, ...], "source": "..."}
+
+    For multi-tier numeric values, returns the lowest amount (best for user).
+    """
+    if attr is None:
+        return None
+    if isinstance(attr, dict):
+        val = attr.get("value")
+        if val is None:
+            return None
+        # Multi-tier: extract the lowest numeric amount
+        if isinstance(val, list) and val:
+            amounts = []
+            for item in val:
+                if isinstance(item, dict) and "amount" in item:
+                    with contextlib.suppress(ValueError, TypeError):
+                        amounts.append(float(item["amount"]))
+            if amounts:
+                return min(amounts)
+            return val[0] if val else None
+        return val
+    return attr
+
+
 def compute_scores(
     listings_data: list[dict[str, object]],
     requirements: list[Requirement],
 ) -> list[dict[str, object]]:
-    """Compute scores for all listings. Returns list of {id, score, hard_pass, data_completeness}."""
+    """Compute scores for all listings."""
     if not requirements:
         return [{"id": ld["id"], "score": 0.0, "hard_pass": False, "data_completeness": 0.0} for ld in listings_data]
 
@@ -19,7 +49,8 @@ def compute_scores(
         if isinstance(attrs, str):
             attrs = json.loads(attrs)
         for req in requirements:
-            val = attrs.get(req.key)
+            raw = attrs.get(req.key)
+            val = extract_value(raw)
             if val is not None and req.type in ("int", "float"):
                 with contextlib.suppress(ValueError, TypeError):
                     all_values.setdefault(req.key, []).append(float(val))
@@ -36,7 +67,9 @@ def compute_scores(
         non_null_count = 0
 
         for req in requirements:
-            val = attrs.get(req.key)
+            raw = attrs.get(req.key)
+            val = extract_value(raw)
+
             if val is not None:
                 non_null_count += 1
 
@@ -62,11 +95,7 @@ def compute_scores(
                 normalized = _normalize(num_val, values, req.direction)
                 earned += req.weight * normalized
 
-            elif req.type == "enum":
-                # Enums get full weight if they have a value
-                earned += req.weight
-
-            elif req.type == "text" and val:
+            elif (req.type == "enum") or (req.type == "text" and val):
                 earned += req.weight
 
         score = (earned / total_weight * 100) if total_weight > 0 else 0.0
@@ -99,5 +128,5 @@ def _normalize(value: float, all_values: list[float], direction: str) -> float:
         return 1.0 - (value - min_v) / (max_v - min_v)
     elif direction == "higher_better":
         return (value - min_v) / (max_v - min_v)
-    else:  # exact — not easily normalizable, default to presence
+    else:
         return 0.5

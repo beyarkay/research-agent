@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException
 from sse_starlette.sse import EventSourceResponse
 
 from app.database import get_db
-from app.schemas import ProjectCreate, ProjectResponse, ProjectStatsResponse, RefineRequest
+from app.schemas import ProjectCreate, ProjectResponse, ProjectStatsResponse
 
 router = APIRouter()
 
@@ -162,37 +162,6 @@ async def project_events(project_id: str) -> EventSourceResponse:
                 del _event_queues[project_id]
 
     return EventSourceResponse(event_generator())
-
-
-@router.post("/projects/{project_id}/refine", response_model=ProjectResponse)
-async def refine_project(project_id: str, body: RefineRequest) -> ProjectResponse:
-    db = await get_db()
-    try:
-        cursor = await db.execute("SELECT * FROM projects WHERE id = ?", (project_id,))
-        row = await cursor.fetchone()
-        if row is None:
-            raise HTTPException(status_code=404, detail="Project not found")
-
-        new_prompt = row["prompt"] + "\n\nAdditional context: " + body.additional_context
-        await db.execute(
-            "UPDATE projects SET prompt = ?, status = 'pending', "
-            "updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?",
-            (new_prompt, project_id),
-        )
-        await db.commit()
-
-        cursor = await db.execute("SELECT * FROM projects WHERE id = ?", (project_id,))
-        updated = await cursor.fetchone()
-        assert updated is not None
-        project = _row_to_project(updated)
-    finally:
-        await db.close()
-
-    from app.research.engine import run_research
-
-    asyncio.create_task(run_research(project_id))
-
-    return project
 
 
 @router.post("/projects/{project_id}/resume", response_model=ProjectResponse)
