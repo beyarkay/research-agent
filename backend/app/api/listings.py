@@ -1,3 +1,4 @@
+import contextlib
 import json
 
 from fastapi import APIRouter, HTTPException, Request
@@ -5,7 +6,8 @@ from fastapi import APIRouter, HTTPException, Request
 from app.api.filters import build_listing_query, parse_filters
 from app.database import get_db
 from app.models import Requirement
-from app.schemas import FallbackResponse, ListingResponse, ListingsPage
+from app.research.score import extract_value
+from app.schemas import AttributeDistribution, FallbackResponse, ListingResponse, ListingsPage
 
 router = APIRouter()
 
@@ -138,3 +140,89 @@ async def list_fallbacks(project_id: str, listing_id: int) -> list[FallbackRespo
         ]
     finally:
         await db.close()
+
+
+@router.get(
+    "/projects/{project_id}/distributions",
+    response_model=list[AttributeDistribution],
+)
+async def get_distributions(project_id: str) -> list[AttributeDistribution]:
+    """Get value distributions for all numeric attributes across all listings."""
+    db = await get_db()
+    try:
+        requirements = await _get_requirements(db, project_id)
+        numeric_reqs = {k: r for k, r in requirements.items() if r.type in ("int", "float")}
+        if not numeric_reqs:
+            return []
+
+        cursor = await db.execute(
+            "SELECT attributes FROM listings WHERE project_id = ?",
+            (project_id,),
+        )
+        rows = await cursor.fetchall()
+
+        distributions: list[AttributeDistribution] = []
+        for key, req in numeric_reqs.items():
+            values: list[float] = []
+            for row in rows:
+                attrs = json.loads(row["attributes"]) if isinstance(row["attributes"], str) else row["attributes"]
+                raw = attrs.get(key)
+                val = extract_value(raw)
+                if val is not None:
+                    with contextlib.suppress(ValueError, TypeError):
+                        values.append(float(val))
+            if values:
+                distributions.append(AttributeDistribution(key=key, values=values, unit=req.unit))
+
+        return distributions
+    finally:
+        await db.close()
+
+
+@router.post("/projects/{project_id}/listings/{listing_id}/validate-urls")
+async def validate_listing_urls(project_id: str, listing_id: int) -> dict[str, bool]:
+    """Validate all URLs associated with a listing (website, source URLs, fallback URLs)."""
+    from app.research.validate_urls import validate_urls
+
+    db = await get_db()
+    try:
+        cursor = await db.execute(
+            "SELECT * FROM listings WHERE id = ? AND project_id = ?",
+            (listing_id, project_id),
+        )
+        row = await cursor.fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail="Listing not found")
+
+        urls_to_check: list[str] = []
+
+        # Main URL
+        if row["url"]:
+            urls_to_check.append(row["url"])
+
+        # Source URLs from structured attributes
+        attrs = json.loads(row["attributes"]) if isinstance(row["attributes"], str) else row["attributes"]
+        for attr_val in attrs.values():
+            if isinstance(attr_val, dict):
+                src = attr_val.get("source")
+                if isinstance(src, str) and src.startswith("http"):
+                    urls_to_check.append(src)
+
+        # Fallback URLs
+        cursor = await db.execute(
+            "SELECT resolution_url FROM fallbacks WHERE listing_id = ?",
+            (listing_id,),
+        )
+        for fb_row in await cursor.fetchall():
+            if fb_row["resolution_url"]:
+                urls_to_check.append(fb_row["resolution_url"])
+
+        # Deduplicate
+        urls_to_check = list(dict.fromkeys(urls_to_check))
+    finally:
+        await db.close()
+
+    if not urls_to_check:
+        return {}
+
+    return await validate_urls(urls_to_check)

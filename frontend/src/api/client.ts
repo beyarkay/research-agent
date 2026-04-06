@@ -1,4 +1,5 @@
 import type {
+  AttributeDistribution,
   Fallback,
   Listing,
   ListingsPage,
@@ -72,4 +73,7 @@ export const api = {
     request<Fallback[]>(
       `/projects/${projectId}/listings/${listingId}/fallbacks`
     ),
+
+  getDistributions: (projectId: string) =>
+    request<AttributeDistribution[]>(`/projects/${projectId}/distributions`),
 }

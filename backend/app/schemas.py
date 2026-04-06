@@ -83,6 +83,7 @@ class RefineRequest(BaseModel):
     additional_context: str
 
 
-class SSEEvent(BaseModel):
-    event: str
-    data: dict[str, object]
+class AttributeDistribution(BaseModel):
+    key: str
+    values: list[float]
+    unit: str | None = None

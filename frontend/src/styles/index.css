@@ -467,6 +467,11 @@ body {
   cursor: help;
 }
 .hard-marker { color: var(--score-low); margin-right: 2px; }
+.histogram {
+  flex-shrink: 0;
+  margin-left: 4px;
+}
+.histogram svg { display: block; }
 .attr-source {
   font-size: 10px;
   color: var(--accent);

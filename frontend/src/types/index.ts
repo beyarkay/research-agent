@@ -71,6 +71,12 @@ export interface SSEEvent {
   data: Record<string, unknown>
 }
 
+export interface AttributeDistribution {
+  key: string
+  values: number[]
+  unit: string | null
+}
+
 export interface FilterState {
   filters: Record<string, string>
   sort: string

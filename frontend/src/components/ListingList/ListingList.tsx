@@ -9,9 +9,6 @@ function extractVal(attr: unknown): unknown {
   return attr
 }
 
-function mapsUrl(address: string): string {
-  return `https://www.google.com/maps/search/${encodeURIComponent(address)}`
-}
 
 export function ListingList({
   listings,
@@ -94,15 +91,7 @@ function ListingCard({
         <div className="card-info">
           <div className="card-name">{listing.name}</div>
           {listing.address && (
-            <a
-              className="card-address"
-              href={mapsUrl(listing.address)}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {listing.address}
-            </a>
+            <div className="card-address">{listing.address}</div>
           )}
         </div>
         <div className="card-score-area">

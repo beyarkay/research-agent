@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 
 import { api } from '../../api/client'
-import type { Fallback, Listing, Requirement } from '../../types'
+import type { AttributeDistribution, Fallback, Listing, Requirement } from '../../types'
+import { Histogram } from './Histogram'
 
 function mapsUrl(address: string): string {
   return `https://www.google.com/maps/search/${encodeURIComponent(address)}`
@@ -39,6 +40,16 @@ export function ListingDetail({
     queryKey: ['fallbacks', projectId, listing.id],
     queryFn: () => api.getFallbacks(projectId, listing.id),
   })
+
+  const { data: distributions } = useQuery({
+    queryKey: ['distributions', projectId],
+    queryFn: () => api.getDistributions(projectId),
+  })
+
+  const distMap = new Map<string, AttributeDistribution>()
+  for (const d of distributions ?? []) {
+    distMap.set(d.key, d)
+  }
 
   const filledCount = requirements.filter((r) => {
     const val = extractValue(listing.attributes[r.key])
@@ -101,6 +112,7 @@ export function ListingDetail({
             requirement={req}
             rawAttr={listing.attributes[req.key]}
             fallbacks={fallbacks?.filter((f) => f.requirement_key === req.key) ?? []}
+            distribution={distMap.get(req.key) ?? null}
           />
         ))}
       </div>
@@ -119,15 +131,21 @@ function AttributeRow({
   requirement,
   rawAttr,
   fallbacks,
+  distribution,
 }: {
   requirement: Requirement
   rawAttr: unknown
   fallbacks: Fallback[]
+  distribution: AttributeDistribution | null
 }) {
   const value = extractValue(rawAttr)
   const source = extractSource(rawAttr)
   const isNull = value === null || value === undefined
   const isBoolFail = requirement.type === 'bool' && value === false
+
+  const numericValue = (requirement.type === 'int' || requirement.type === 'float') && !isNull
+    ? Number(value)
+    : null
 
   return (
     <div className={`attr-row ${requirement.is_hard ? 'hard' : 'soft'}`}>
@@ -141,6 +159,13 @@ function AttributeRow({
         {requirement.is_hard && <span className="hard-marker">*</span>}
         {shortLabel(requirement.label)}
       </span>
+      {distribution && (
+        <Histogram
+          values={distribution.values}
+          current={numericValue}
+          unit={distribution.unit}
+        />
+      )}
       {source && (
         <a className="attr-source" href={source} target="_blank" rel="noopener noreferrer" title={source}>
           src
