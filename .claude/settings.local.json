@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -la /Users/brk/projects/claude-research/*/)",
+      "Bash(ls /Users/brk/projects/claude-research/*.*)",
+      "WebSearch",
+      "Bash(git init:*)",
+      "Bash(uv init:*)",
+      "Bash(uv add:*)",
+      "Bash(npm create:*)",
+      "Bash(npm install:*)",
+      "Bash(/bin/rm -rf /Users/brk/projects/claude-research/frontend)",
+      "Bash(npx --yes create-vite frontend --template react-ts)",
+      "Bash(chmod +x:*)",
+      "Bash(uv run:*)"
+    ]
+  }
+}
