@@ -39,7 +39,7 @@ export function ListingList({
             key={listing.id}
             listing={listing}
             keyReqs={keyReqs}
-            allReqCount={requirements.length}
+            allReqs={requirements}
             selected={listing.id === selectedId}
             onClick={() => onSelect(listing.id)}
           />
@@ -55,21 +55,27 @@ export function ListingList({
 function ListingCard({
   listing,
   keyReqs,
-  allReqCount,
+  allReqs,
   selected,
   onClick,
 }: {
   listing: Listing
   keyReqs: Requirement[]
-  allReqCount: number
+  allReqs: Requirement[]
   selected: boolean
   onClick: () => void
 }) {
+  const allReqCount = allReqs.length
   // Count filled attributes across ALL requirements
   const filledCount = Object.values(listing.attributes).filter((v) => {
     const extracted = extractVal(v)
     return extracted !== null && extracted !== undefined
   }).length
+
+  // Get human-readable names for hard failures
+  const failureLabels = listing.hard_failures
+    .map((key) => allReqs.find((r) => r.key === key)?.label ?? key)
+    .join(', ')
 
   return (
     <div
@@ -113,6 +119,9 @@ function ListingCard({
           )}
         </div>
       </div>
+      {failureLabels && (
+        <div className="card-failures">Fails: {failureLabels}</div>
+      )}
       <div className="card-stats">
         {keyReqs.map((req) => {
           const val = extractVal(listing.attributes[req.key])

@@ -27,6 +27,7 @@ def _row_to_listing(row) -> ListingResponse:
         raw_notes=row["raw_notes"],
         score=row["score"],
         hard_pass=bool(row["hard_pass"]),
+        hard_failures=json.loads(row["hard_failures"]) if row["hard_failures"] else [],
         data_completeness=row["data_completeness"],
         status=row["status"],
     )

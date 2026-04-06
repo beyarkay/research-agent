@@ -336,6 +336,11 @@ body {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+.card-failures {
+  font-size: 10px;
+  color: var(--score-low);
+  margin-top: 2px;
+}
 .card-stats {
   display: flex;
   flex-wrap: wrap;

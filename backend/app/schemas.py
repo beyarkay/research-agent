@@ -49,6 +49,7 @@ class ListingResponse(BaseModel):
     raw_notes: str | None = None
     score: float | None = None
     hard_pass: bool = False
+    hard_failures: list[str] = []
     data_completeness: float = 0.0
     status: str
 

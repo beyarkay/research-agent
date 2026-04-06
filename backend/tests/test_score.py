@@ -71,15 +71,27 @@ def test_data_completeness():
     assert scores[2]["data_completeness"] == 0.0
 
 
-def test_null_hard_requirement():
+def test_null_hard_requirement_does_not_fail():
+    """Unknown (null) values should NOT cause hard requirement failure."""
     reqs = [_req("required_thing", is_hard=True)]
     listings = [
         {"id": 1, "attributes": json.dumps({"required_thing": None})},
         {"id": 2, "attributes": json.dumps({})},
     ]
     scores = compute_scores(listings, reqs)
+    assert not scores[0]["hard_pass"]
+    assert not scores[1]["hard_pass"]
+
+
+def test_explicit_false_hard_requirement_fails():
+    """Explicitly false values SHOULD cause hard requirement failure."""
+    reqs = [_req("required_thing", is_hard=True)]
+    listings = [
+        {"id": 1, "attributes": json.dumps({"required_thing": False})},
+    ]
+    scores = compute_scores(listings, reqs)
     assert scores[0]["hard_pass"]
-    assert scores[1]["hard_pass"]
+    assert scores[0]["hard_failures"] == ["required_thing"]
 
 
 def test_empty_requirements():

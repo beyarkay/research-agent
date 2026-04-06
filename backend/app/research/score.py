@@ -64,6 +64,7 @@ def compute_scores(
         total_weight = 0.0
         earned = 0.0
         hard_pass = False
+        hard_failures: list[str] = []
         non_null_count = 0
 
         for req in requirements:
@@ -76,8 +77,8 @@ def compute_scores(
             total_weight += req.weight
 
             if val is None:
-                if req.is_hard:
-                    hard_pass = True
+                # Unknown values don't fail hard requirements —
+                # only explicit false/bad values do
                 continue
 
             if req.type == "bool":
@@ -85,6 +86,7 @@ def compute_scores(
                     earned += req.weight
                 elif req.is_hard:
                     hard_pass = True
+                    hard_failures.append(req.key)
 
             elif req.type in ("int", "float"):
                 try:
@@ -106,6 +108,7 @@ def compute_scores(
                 "id": ld["id"],
                 "score": round(score, 1),
                 "hard_pass": hard_pass,
+                "hard_failures": hard_failures,
                 "data_completeness": round(completeness, 2),
             }
         )

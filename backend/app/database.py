@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS listings (
     raw_notes TEXT,
     score REAL,
     hard_pass INTEGER NOT NULL DEFAULT 0,
+    hard_failures TEXT NOT NULL DEFAULT '[]',
     data_completeness REAL NOT NULL DEFAULT 0.0,
     status TEXT NOT NULL DEFAULT 'discovered'
 );

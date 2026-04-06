@@ -36,6 +36,7 @@ export interface Listing {
   raw_notes: string | null
   score: number | null
   hard_pass: boolean
+  hard_failures: string[]
   data_completeness: number
   status: string
 }

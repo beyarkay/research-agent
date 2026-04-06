@@ -537,8 +537,15 @@ async def run_research(project_id: str) -> None:
         try:
             for s in scored:
                 await db.execute(
-                    "UPDATE listings SET score = ?, hard_pass = ?, data_completeness = ? WHERE id = ?",
-                    (s["score"], int(s["hard_pass"]), s["data_completeness"], s["id"]),
+                    "UPDATE listings SET score = ?, hard_pass = ?, "
+                    "hard_failures = ?, data_completeness = ? WHERE id = ?",
+                    (
+                        s["score"],
+                        int(s["hard_pass"]),
+                        json.dumps(s["hard_failures"]),
+                        s["data_completeness"],
+                        s["id"],
+                    ),
                 )
             await db.commit()
         finally:

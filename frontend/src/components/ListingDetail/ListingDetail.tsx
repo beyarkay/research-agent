@@ -72,7 +72,14 @@ export function ListingDetail({
               Website &rarr;
             </a>
           )}
-          {listing.hard_pass && <span className="hard-fail-badge">Fails hard requirement</span>}
+          {listing.hard_pass && listing.hard_failures.length > 0 && (
+            <span className="hard-fail-badge">
+              Fails: {listing.hard_failures.map((key) => {
+                const req = requirements.find((r) => r.key === key)
+                return req?.label ?? key
+              }).join(', ')}
+            </span>
+          )}
         </div>
       </div>
 
