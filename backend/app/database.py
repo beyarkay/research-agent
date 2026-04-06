@@ -114,8 +114,8 @@ CREATE INDEX IF NOT EXISTS idx_fallbacks_listing ON fallbacks(listing_id);
 CREATE INDEX IF NOT EXISTS idx_llm_calls_project ON llm_calls(project_id);
 """
 
-# Shared connection for in-memory databases (tests).
-# With :memory:, each connect() gets a separate DB, so we share one.
+# Single shared connection — SQLite doesn't handle concurrent writers well,
+# so we use one connection for the whole app and let aiosqlite serialize access.
 _shared_conn: aiosqlite.Connection | None = None
 
 
@@ -132,26 +132,23 @@ class _NoCloseConnection:
         pass  # keep the shared connection open
 
 
+async def _open_shared(path: str) -> aiosqlite.Connection:
+    conn = await aiosqlite.connect(path)
+    conn.row_factory = aiosqlite.Row
+    await conn.execute("PRAGMA journal_mode=WAL")
+    await conn.execute("PRAGMA foreign_keys=ON")
+    await conn.execute("PRAGMA busy_timeout=5000")
+    return conn
+
+
 async def get_db() -> aiosqlite.Connection:
     global _shared_conn
-    if settings.database_path == ":memory:":
-        if _shared_conn is None:
-            _shared_conn = await aiosqlite.connect(":memory:")
-            _shared_conn.row_factory = aiosqlite.Row
-            await _shared_conn.execute("PRAGMA foreign_keys=ON")
-        return _NoCloseConnection(_shared_conn)  # type: ignore[return-value]
-
-    db = await aiosqlite.connect(settings.database_path)
-    db.row_factory = aiosqlite.Row
-    await db.execute("PRAGMA journal_mode=WAL")
-    await db.execute("PRAGMA foreign_keys=ON")
-    return db
+    if _shared_conn is None:
+        _shared_conn = await _open_shared(settings.database_path)
+    return _NoCloseConnection(_shared_conn)  # type: ignore[return-value]
 
 
 async def init_db() -> None:
     db = await get_db()
-    try:
-        await db.executescript(_TABLES)
-        await db.commit()
-    finally:
-        await db.close()
+    await db.executescript(_TABLES)
+    await db.commit()
