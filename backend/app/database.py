@@ -46,7 +46,9 @@ CREATE TABLE IF NOT EXISTS listings (
     hard_pass INTEGER NOT NULL DEFAULT 0,
     hard_failures TEXT NOT NULL DEFAULT '[]',
     data_completeness REAL NOT NULL DEFAULT 0.0,
-    status TEXT NOT NULL DEFAULT 'discovered'
+    status TEXT NOT NULL DEFAULT 'discovered',
+    user_status TEXT NOT NULL DEFAULT 'normal',
+    user_notes TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS search_queries (

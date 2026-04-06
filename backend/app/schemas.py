@@ -5,6 +5,11 @@ class ProjectCreate(BaseModel):
     prompt: str
 
 
+class ListingUserUpdate(BaseModel):
+    user_status: str | None = None
+    user_notes: str | None = None
+
+
 class AddListingRequest(BaseModel):
     url: str
     name: str | None = None
@@ -60,6 +65,8 @@ class ListingResponse(BaseModel):
     hard_failures: list[str] = []
     data_completeness: float = 0.0
     status: str
+    user_status: str = "normal"
+    user_notes: str = ""
 
 
 class FallbackResponse(BaseModel):

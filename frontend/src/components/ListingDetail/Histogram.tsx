@@ -1,6 +1,7 @@
 /**
  * Tiny inline SVG histogram showing the distribution of a numeric attribute.
  * The current listing's value is highlighted with a red line.
+ * Shows min/max labels and bar tooltips on hover.
  */
 
 interface HistogramProps {
@@ -12,13 +13,14 @@ interface HistogramProps {
 }
 
 const BINS = 10
+const LABEL_H = 10
 
 export function Histogram({
   values,
   current,
   unit,
-  width = 120,
-  height = 28,
+  width = 140,
+  height = 32,
 }: HistogramProps) {
   if (values.length < 2) return null
 
@@ -38,6 +40,8 @@ export function Histogram({
   const maxBin = Math.max(...bins)
   const barW = width / BINS
   const pad = 1
+  const chartH = height - LABEL_H
+  const u = unit ? ` ${unit}` : ''
 
   // Where does the current value fall?
   let markerX: number | null = null
@@ -46,20 +50,27 @@ export function Histogram({
     markerX = Math.max(0, Math.min(width, frac * width))
   }
 
+  const fmt = (n: number) => Number.isInteger(n) ? String(n) : n.toFixed(1)
+
   return (
-    <div className="histogram" title={`${values.length} values, ${min}–${max}${unit ? ' ' + unit : ''}`}>
+    <div className="histogram">
       <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
         {bins.map((count, i) => {
-          const barH = maxBin > 0 ? (count / maxBin) * (height - 2) : 0
+          const barH = maxBin > 0 ? (count / maxBin) * (chartH - 2) : 0
+          const lo = min + i * binWidth
+          const hi = lo + binWidth
+          const title = `${count} listing${count !== 1 ? 's' : ''}: ${fmt(lo)}–${fmt(hi)}${u}`
           return (
             <rect
               key={i}
               x={i * barW + pad / 2}
-              y={height - barH}
+              y={chartH - barH}
               width={barW - pad}
               height={barH}
               fill="#ccc"
-            />
+            >
+              <title>{title}</title>
+            </rect>
           )
         })}
         {markerX !== null && (
@@ -67,11 +78,18 @@ export function Histogram({
             x1={markerX}
             y1={0}
             x2={markerX}
-            y2={height}
+            y2={chartH}
             stroke="#dc2626"
             strokeWidth={2}
           />
         )}
+        {/* Min/max labels */}
+        <text x={0} y={height} fontSize={8} fill="#999" textAnchor="start">
+          {fmt(min)}
+        </text>
+        <text x={width} y={height} fontSize={8} fill="#999" textAnchor="end">
+          {fmt(max)}{u}
+        </text>
       </svg>
     </div>
   )

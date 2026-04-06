@@ -40,6 +40,8 @@ export interface Listing {
   hard_failures: string[]
   data_completeness: number
   status: string
+  user_status: 'normal' | 'favourite' | 'minimized'
+  user_notes: string
 }
 
 export interface Fallback {

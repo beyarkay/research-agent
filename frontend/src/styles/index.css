@@ -297,6 +297,9 @@ body {
 .listing-card:hover { background: #f8f8f0; }
 .listing-card.selected { background: var(--selected-bg); }
 .listing-card.failed { opacity: 0.55; }
+.listing-card.fav { border-left: 3px solid #eab308; }
+.listing-card.minimized { opacity: 0.3; font-size: 11px; }
+.listing-card.minimized .card-stats { display: none; }
 
 .card-top {
   display: flex;
@@ -361,6 +364,15 @@ body {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+.card-note {
+  font-size: 10px;
+  color: var(--accent);
+  font-style: italic;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .card-failures {
   font-size: 10px;
   color: var(--score-low);
@@ -430,6 +442,31 @@ body {
   border-radius: 2px;
   font-size: 10px;
   font-weight: 500;
+}
+
+/* User controls */
+.user-controls {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 8px 0;
+  padding: 6px;
+  background: #f8f8f0;
+  border-radius: 3px;
+}
+.user-buttons { display: flex; gap: 4px; flex-shrink: 0; }
+.user-buttons .btn-sm { font-size: 11px; }
+.user-buttons .active-fav { background: #fef3c7; border-color: #eab308; }
+.user-buttons .active-min { background: #f0f0e8; color: var(--muted); }
+.user-notes {
+  flex: 1;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  resize: vertical;
+  min-height: 28px;
 }
 
 .detail-image {

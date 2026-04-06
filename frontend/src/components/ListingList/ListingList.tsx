@@ -74,9 +74,13 @@ function ListingCard({
     .map((key) => allReqs.find((r) => r.key === key)?.label ?? key)
     .join(', ')
 
+  const userClass = listing.user_status === 'favourite' ? 'fav' :
+    listing.user_status === 'minimized' ? 'minimized' : ''
+  const firstNote = listing.user_notes?.split('\n')[0] || ''
+
   return (
     <div
-      className={`listing-card ${selected ? 'selected' : ''} ${listing.hard_pass ? 'failed' : ''}`}
+      className={`listing-card ${selected ? 'selected' : ''} ${listing.hard_pass ? 'failed' : ''} ${userClass}`}
       onClick={onClick}
     >
       <div className="card-top">
@@ -121,6 +125,7 @@ function ListingCard({
             </span>
           )
         })}
+      {firstNote && <div className="card-note">{firstNote}</div>}
       </div>
     </div>
   )

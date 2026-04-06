@@ -7,7 +7,14 @@ from app.api.filters import build_listing_query, parse_filters
 from app.database import get_db
 from app.models import Requirement
 from app.research.score import extract_value
-from app.schemas import AddListingRequest, AttributeDistribution, FallbackResponse, ListingResponse, ListingsPage
+from app.schemas import (
+    AddListingRequest,
+    AttributeDistribution,
+    FallbackResponse,
+    ListingResponse,
+    ListingsPage,
+    ListingUserUpdate,
+)
 
 router = APIRouter()
 
@@ -32,6 +39,8 @@ def _row_to_listing(row) -> ListingResponse:
         hard_failures=json.loads(row["hard_failures"]) if row["hard_failures"] else [],
         data_completeness=row["data_completeness"],
         status=row["status"],
+        user_status=row["user_status"],
+        user_notes=row["user_notes"],
     )
 
 
@@ -99,6 +108,44 @@ async def list_listings(project_id: str, request: Request) -> ListingsPage:
 async def get_listing(project_id: str, listing_id: int) -> ListingResponse:
     db = await get_db()
     try:
+        cursor = await db.execute(
+            "SELECT * FROM listings WHERE id = ? AND project_id = ?",
+            (listing_id, project_id),
+        )
+        row = await cursor.fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail="Listing not found")
+        return _row_to_listing(row)
+    finally:
+        await db.close()
+
+
+@router.patch("/projects/{project_id}/listings/{listing_id}", response_model=ListingResponse)
+async def update_listing_user_data(project_id: str, listing_id: int, body: ListingUserUpdate) -> ListingResponse:
+    """Update user-set fields on a listing (favourite/minimize, notes)."""
+    db = await get_db()
+    try:
+        updates = []
+        params: list[object] = []
+        if body.user_status is not None:
+            if body.user_status not in ("normal", "favourite", "minimized"):
+                raise HTTPException(status_code=400, detail="Invalid user_status")
+            updates.append("user_status = ?")
+            params.append(body.user_status)
+        if body.user_notes is not None:
+            updates.append("user_notes = ?")
+            params.append(body.user_notes)
+
+        if not updates:
+            raise HTTPException(status_code=400, detail="No fields to update")
+
+        params.extend([listing_id, project_id])
+        await db.execute(
+            f"UPDATE listings SET {', '.join(updates)} WHERE id = ? AND project_id = ?",
+            params,
+        )
+        await db.commit()
+
         cursor = await db.execute(
             "SELECT * FROM listings WHERE id = ? AND project_id = ?",
             (listing_id, project_id),

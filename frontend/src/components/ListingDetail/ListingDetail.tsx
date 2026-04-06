@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useRef } from 'react'
 
 import { api } from '../../api/client'
 import type { AttributeDistribution, Fallback, Listing, Requirement } from '../../types'
@@ -50,6 +51,9 @@ export function ListingDetail({
   projectId: string
   originAddress?: string | null
 }) {
+  const queryClient = useQueryClient()
+  const notesRef = useRef<HTMLTextAreaElement>(null)
+
   const { data: fallbacks } = useQuery({
     queryKey: ['fallbacks', projectId, listing.id],
     queryFn: () => api.getFallbacks(projectId, listing.id),
@@ -106,6 +110,49 @@ export function ListingDetail({
             </span>
           )}
         </div>
+      </div>
+
+      <div className="user-controls">
+        <div className="user-buttons">
+          <button
+            className={`btn-sm ${listing.user_status === 'favourite' ? 'active-fav' : ''}`}
+            onClick={() => {
+              const next = listing.user_status === 'favourite' ? 'normal' : 'favourite'
+              void api.updateListing(projectId, listing.id, { user_status: next }).then(() => {
+                void queryClient.invalidateQueries({ queryKey: ['listings', projectId] })
+              })
+            }}
+          >
+            {listing.user_status === 'favourite' ? '\u2605 Fav' : '\u2606 Fav'}
+          </button>
+          <button
+            className={`btn-sm ${listing.user_status === 'minimized' ? 'active-min' : ''}`}
+            onClick={() => {
+              const next = listing.user_status === 'minimized' ? 'normal' : 'minimized'
+              void api.updateListing(projectId, listing.id, { user_status: next }).then(() => {
+                void queryClient.invalidateQueries({ queryKey: ['listings', projectId] })
+              })
+            }}
+          >
+            {listing.user_status === 'minimized' ? 'Show' : 'Minimize'}
+          </button>
+        </div>
+        <textarea
+          ref={notesRef}
+          className="user-notes"
+          defaultValue={listing.user_notes}
+          placeholder="Your notes..."
+          rows={2}
+          key={listing.id}
+          onBlur={() => {
+            const val = notesRef.current?.value ?? ''
+            if (val !== listing.user_notes) {
+              void api.updateListing(projectId, listing.id, { user_notes: val }).then(() => {
+                void queryClient.invalidateQueries({ queryKey: ['listings', projectId] })
+              })
+            }
+          }}
+        />
       </div>
 
       {listing.image_url && (
