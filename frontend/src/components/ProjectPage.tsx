@@ -23,8 +23,8 @@ export function ProjectPage() {
     queryKey: ['project', id],
     queryFn: () => api.getProject(id!),
     enabled: !!id,
-    refetchInterval: () => {
-      const status = project?.status
+    refetchInterval: (query) => {
+      const status = query.state.data?.status
       return status && status !== 'done' && status !== 'error' ? 3000 : false
     },
   })
@@ -35,28 +35,20 @@ export function ProjectPage() {
     enabled: !!id,
   })
 
+  const isDone = project?.status === 'done' || project?.status === 'error'
+
   const { data: stats } = useQuery({
     queryKey: ['stats', id],
     queryFn: () => api.getProjectStats(id!),
     enabled: !!id,
-    refetchInterval: () => {
-      const pStatus = project?.status
-      return pStatus && pStatus !== 'done' && pStatus !== 'error'
-        ? 5000
-        : false
-    },
+    refetchInterval: isDone ? false : 5000,
   })
 
   const { data: listingsPage } = useQuery({
     queryKey: ['listings', id, filters.queryParams],
     queryFn: () => api.getListings(id!, filters.queryParams),
     enabled: !!id,
-    refetchInterval: () => {
-      const pStatus = project?.status
-      return pStatus && pStatus !== 'done' && pStatus !== 'error'
-        ? 5000
-        : false
-    },
+    refetchInterval: isDone ? false : 5000,
   })
 
   const resumeMutation = useMutation({

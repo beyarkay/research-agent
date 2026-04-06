@@ -22,7 +22,11 @@
       "Bash(bash ../scripts/check.sh)",
       "Bash(npx eslint:*)",
       "Bash(git add:*)",
-      "Bash(git config:*)"
+      "Bash(git config:*)",
+      "Bash(npx playwright:*)",
+      "Bash(mkdir:*)",
+      "Bash(curl:*)",
+      "Bash(npx madge:*)"
     ]
   }
 }

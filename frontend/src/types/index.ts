@@ -75,3 +75,10 @@ export interface FilterState {
   sort: string
   hideFailed: boolean
 }
+
+export interface FilterActions extends FilterState {
+  setFilter: (key: string, value: string | null) => void
+  setSort: (sort: string) => void
+  toggleHideFailed: () => void
+  queryParams: Record<string, string>
+}

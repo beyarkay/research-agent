@@ -1,7 +1,6 @@
-import type { Requirement } from '../../types'
-import type { useFilters } from '../../hooks/useFilters'
+import type { FilterActions, Requirement } from '../../types'
 
-type Filters = ReturnType<typeof useFilters>
+type Filters = FilterActions
 
 export function FilterSortBar({
   requirements,
