@@ -10,6 +10,10 @@ class ListingUserUpdate(BaseModel):
     user_notes: str | None = None
 
 
+class RetryListingRequest(BaseModel):
+    hint: str = ""
+
+
 class AddListingRequest(BaseModel):
     url: str
     name: str | None = None

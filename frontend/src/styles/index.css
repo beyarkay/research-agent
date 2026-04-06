@@ -300,6 +300,12 @@ body {
 .listing-card.fav { border-left: 3px solid #eab308; }
 .listing-card.minimized { opacity: 0.3; font-size: 11px; }
 .listing-card.minimized .card-stats { display: none; }
+.listing-card.errored { border-left: 3px solid var(--score-low); }
+.card-error {
+  font-size: 10px;
+  color: var(--score-low);
+  font-weight: 500;
+}
 
 .card-top {
   display: flex;
@@ -442,6 +448,59 @@ body {
   border-radius: 2px;
   font-size: 10px;
   font-weight: 500;
+}
+
+/* Retry panel */
+.retry-panel {
+  margin: 6px 0;
+  padding: 6px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 3px;
+}
+.retry-header { margin-bottom: 4px; }
+.retry-error {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--score-low);
+}
+.retry-error-detail {
+  display: block;
+  font-size: 10px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  margin-top: 2px;
+}
+.retry-form {
+  display: flex;
+  gap: 6px;
+}
+.retry-form input {
+  flex: 1;
+  font-size: 11px;
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+}
+.retry-form button {
+  padding: 3px 10px;
+  font-size: 11px;
+  background: var(--score-low);
+  color: #fff;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.retry-form button:disabled { opacity: 0.5; }
+.user-buttons .retry-panel {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+.user-buttons .retry-form button {
+  background: var(--accent);
 }
 
 /* User controls */

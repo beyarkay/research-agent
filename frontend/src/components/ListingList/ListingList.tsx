@@ -80,7 +80,7 @@ function ListingCard({
 
   return (
     <div
-      className={`listing-card ${selected ? 'selected' : ''} ${listing.hard_pass ? 'failed' : ''} ${userClass}`}
+      className={`listing-card ${selected ? 'selected' : ''} ${listing.hard_pass ? 'failed' : ''} ${listing.status === 'error' ? 'errored' : ''} ${userClass}`}
       onClick={onClick}
     >
       <div className="card-top">
@@ -96,6 +96,9 @@ function ListingCard({
           <div className="card-name">{listing.name}</div>
           {listing.address && (
             <div className="card-address">{listing.address}</div>
+          )}
+          {listing.status === 'error' && (
+            <div className="card-error">Research failed</div>
           )}
         </div>
         <div className="card-score-area">

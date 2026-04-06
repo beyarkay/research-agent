@@ -77,6 +77,12 @@ export const api = {
   getDistributions: (projectId: string) =>
     request<AttributeDistribution[]>(`/projects/${projectId}/distributions`),
 
+  retryListing: (projectId: string, listingId: number, hint?: string) =>
+    request<Listing>(`/projects/${projectId}/listings/${listingId}/retry`, {
+      method: 'POST',
+      body: JSON.stringify({ hint: hint ?? '' }),
+    }),
+
   updateListing: (
     projectId: string,
     listingId: number,

@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 
 import { api } from '../../api/client'
 import type { AttributeDistribution, Fallback, Listing, Requirement } from '../../types'
@@ -112,6 +112,10 @@ export function ListingDetail({
         </div>
       </div>
 
+      {(listing.status === 'error' || listing.status === 'discovered') && (
+        <RetryPanel projectId={projectId} listing={listing} />
+      )}
+
       <div className="user-controls">
         <div className="user-buttons">
           <button
@@ -136,6 +140,9 @@ export function ListingDetail({
           >
             {listing.user_status === 'minimized' ? 'Show' : 'Minimize'}
           </button>
+          {listing.status === 'complete' && (
+            <RetryPanel projectId={projectId} listing={listing} />
+          )}
         </div>
         <textarea
           ref={notesRef}
@@ -184,6 +191,44 @@ export function ListingDetail({
           <pre>{listing.raw_notes.split('---CONFIDENCE---')[0].trim()}</pre>
         </details>
       )}
+    </div>
+  )
+}
+
+function RetryPanel({ projectId, listing }: { projectId: string; listing: Listing }) {
+  const [hint, setHint] = useState('')
+  const [retrying, setRetrying] = useState(false)
+  const queryClient = useQueryClient()
+
+  const doRetry = () => {
+    setRetrying(true)
+    void api.retryListing(projectId, listing.id, hint).then(() => {
+      void queryClient.invalidateQueries({ queryKey: ['listings', projectId] })
+      setRetrying(false)
+    })
+  }
+
+  return (
+    <div className="retry-panel">
+      <div className="retry-header">
+        {listing.status === 'error' && (
+          <span className="retry-error">Research failed</span>
+        )}
+        {listing.raw_notes && listing.status === 'error' && (
+          <span className="retry-error-detail">{listing.raw_notes.slice(0, 200)}</span>
+        )}
+      </div>
+      <div className="retry-form">
+        <input
+          type="text"
+          value={hint}
+          onChange={(e) => setHint(e.target.value)}
+          placeholder="Optional: hint for research (e.g. 'check their pricing page', 'focus on amenities')"
+        />
+        <button onClick={doRetry} disabled={retrying}>
+          {retrying ? 'Retrying...' : listing.status === 'error' ? 'Retry Research' : 'Re-research'}
+        </button>
+      </div>
     </div>
   )
 }
