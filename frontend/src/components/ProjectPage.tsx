@@ -50,7 +50,14 @@ export function ProjectPage() {
     queryKey: ['listings', id, filters.queryParams],
     queryFn: () => api.getListings(id!, filters.queryParams),
     enabled: !!id,
-    refetchInterval: isDone ? false : 5000,
+    refetchInterval: () => {
+      // Poll while project is running OR any listing is still being researched
+      if (!isDone) return 5000
+      const hasInProgress = listings.some(
+        (l) => l.status === 'discovered' || l.status === 'researching'
+      )
+      return hasInProgress ? 3000 : false
+    },
   })
 
   const resumeMutation = useMutation({

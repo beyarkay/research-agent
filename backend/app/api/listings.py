@@ -163,11 +163,16 @@ async def update_listing_user_data(project_id: str, listing_id: int, body: Listi
 async def retry_listing(project_id: str, listing_id: int, body: RetryListingRequest) -> ListingResponse:
     """Re-run deep research on a listing, with an optional hint."""
     import asyncio
+    import logging
+    import traceback
 
     from anthropic import AsyncAnthropic
 
     from app.config import settings
+    from app.research.deep import deep_research
     from app.research.score import compute_scores
+
+    logger = logging.getLogger(__name__)
 
     db = await get_db()
     try:
@@ -179,7 +184,6 @@ async def retry_listing(project_id: str, listing_id: int, body: RetryListingRequ
         if row is None:
             raise HTTPException(status_code=404, detail="Listing not found")
 
-        # Reset status
         await db.execute(
             "UPDATE listings SET status = 'discovered', attributes = '{}', raw_notes = NULL WHERE id = ?",
             (listing_id,),
@@ -192,88 +196,87 @@ async def retry_listing(project_id: str, listing_id: int, body: RetryListingRequ
         await db.close()
 
     async def _research():
-        reqs = await _get_requirements(await get_db(), project_id)
-        req_list = list(reqs.values())
-        client = AsyncAnthropic(api_key=settings.anthropic_api_key)
-
-        # Append hint to user content if provided
-        extra = f"\n\nAdditional guidance: {body.hint}" if body.hint else ""
-        import time
-
-        from app.research.deep import _build_attributes_prompt, _extract_json, _extract_text
-        from app.research.prompts import DEEP_SYSTEM
-        from app.research.wide import WEB_SEARCH_TOOL
-
-        attrs_prompt = _build_attributes_prompt(req_list)
-        user_content = (
-            f"Research '{listing_name}'"
-            + (f" — official website: {listing_url}" if listing_url else "")
-            + (f" at {listing_address}" if listing_address else "")
-            + f"\n\nFill in these attributes:\n{attrs_prompt}"
-            + "\n\nIMPORTANT: Visit the official website first."
-            + "\n\nNOTE: Drive/commute times will be calculated automatically — set to null."
-            + "\n\nIf the venue is permanently closed, set currently_open to false."
-            + extra
-        )
-
-        start = time.monotonic()
-        response = await client.messages.create(
-            model=settings.model,
-            max_tokens=8192,
-            system=DEEP_SYSTEM,
-            messages=[{"role": "user", "content": user_content}],
-            tools=[WEB_SEARCH_TOOL],
-        )
-        _ = int((time.monotonic() - start) * 1000)  # duration_ms, unused for now
-        text = _extract_text(response)
         try:
-            data = _extract_json(text)
-        except (json.JSONDecodeError, ValueError):
-            data = {}
+            reqs_map = await _get_requirements(await get_db(), project_id)
+            req_list = list(reqs_map.values())
+            client = AsyncAnthropic(api_key=settings.anthropic_api_key)
 
-        db2 = await get_db()
-        try:
-            await db2.execute(
-                "UPDATE listings SET attributes = ?, summary = ?, "
-                "address = COALESCE(?, address), "
-                "image_url = COALESCE(?, image_url), raw_notes = ?, "
-                "status = 'complete' WHERE id = ?",
-                (
-                    json.dumps(data.get("attributes", {})),
-                    data.get("summary"),
-                    data.get("full_address"),
-                    data.get("image_url"),
-                    data.get("raw_notes"),
-                    listing_id,
-                ),
+            # Append hint to the listing address context
+            address_with_hint = listing_address
+            if body.hint:
+                address_with_hint = (listing_address or "") + f"\n\nAdditional guidance: {body.hint}"
+
+            dr = await deep_research(
+                client,
+                listing_name,
+                listing_url,
+                address_with_hint,
+                req_list,
             )
-            await db2.commit()
-        finally:
-            await db2.close()
 
-        # Rescore
-        db3 = await get_db()
-        try:
-            cursor = await db3.execute(
-                "SELECT id, attributes FROM listings WHERE project_id = ?",
-                (project_id,),
-            )
-            all_listings = [{"id": r["id"], "attributes": r["attributes"]} for r in await cursor.fetchall()]
-        finally:
-            await db3.close()
-
-        scored = compute_scores(all_listings, req_list)
-        db4 = await get_db()
-        try:
-            for s in scored:
-                await db4.execute(
-                    "UPDATE listings SET score = ?, hard_pass = ?, "
-                    "hard_failures = ?, data_completeness = ? WHERE id = ?",
-                    (s["score"], int(s["hard_pass"]), json.dumps(s["hard_failures"]), s["data_completeness"], s["id"]),
+            db2 = await get_db()
+            try:
+                await db2.execute(
+                    "UPDATE listings SET attributes = ?, summary = ?, "
+                    "address = COALESCE(?, address), "
+                    "image_url = COALESCE(?, image_url), raw_notes = ?, "
+                    "status = 'complete' WHERE id = ?",
+                    (
+                        json.dumps(dr.attributes),
+                        dr.summary,
+                        dr.full_address,
+                        dr.image_url,
+                        dr.raw_notes,
+                        listing_id,
+                    ),
                 )
-            await db4.commit()
-        finally:
-            await db4.close()
+                await db2.commit()
+            finally:
+                await db2.close()
+
+            # Rescore all listings in project
+            db3 = await get_db()
+            try:
+                cursor = await db3.execute(
+                    "SELECT id, attributes FROM listings WHERE project_id = ?",
+                    (project_id,),
+                )
+                all_listings = [{"id": r["id"], "attributes": r["attributes"]} for r in await cursor.fetchall()]
+            finally:
+                await db3.close()
+
+            scored = compute_scores(all_listings, req_list)
+            db4 = await get_db()
+            try:
+                for s in scored:
+                    await db4.execute(
+                        "UPDATE listings SET score = ?, hard_pass = ?, "
+                        "hard_failures = ?, data_completeness = ? WHERE id = ?",
+                        (
+                            s["score"],
+                            int(s["hard_pass"]),
+                            json.dumps(s["hard_failures"]),
+                            s["data_completeness"],
+                            s["id"],
+                        ),
+                    )
+                await db4.commit()
+            finally:
+                await db4.close()
+
+            logger.info("Retry succeeded for listing %d: %s", listing_id, listing_name)
+
+        except Exception as exc:
+            logger.exception("Retry failed for listing %d: %s", listing_id, listing_name)
+            db_err = await get_db()
+            try:
+                await db_err.execute(
+                    "UPDATE listings SET status = 'error', raw_notes = ? WHERE id = ?",
+                    (f"RETRY ERROR: {exc}\n\n{traceback.format_exc()}", listing_id),
+                )
+                await db_err.commit()
+            finally:
+                await db_err.close()
 
     asyncio.create_task(_research())
 
