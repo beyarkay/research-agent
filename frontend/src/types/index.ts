@@ -5,6 +5,7 @@ export interface Project {
   prompt: string
   parsed_intent: string | null
   search_locale: string | null
+  origin_address: string | null
   status: string
 }
 

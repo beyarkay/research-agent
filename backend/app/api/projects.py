@@ -32,6 +32,7 @@ def _row_to_project(row: aiosqlite.Row) -> ProjectResponse:
         prompt=row["prompt"],
         parsed_intent=row["parsed_intent"],
         search_locale=row["search_locale"],
+        origin_address=row["origin_address"],
         status=row["status"],
     )
 

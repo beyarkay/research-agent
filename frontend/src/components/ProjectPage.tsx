@@ -151,6 +151,7 @@ export function ProjectPage() {
             <ListingDetail
               listing={selectedListing}
               requirements={requirements ?? []}
+              originAddress={project?.origin_address}
               projectId={id}
             />
           ) : (

@@ -19,6 +19,7 @@ class ProjectResponse(BaseModel):
     prompt: str
     parsed_intent: str | None = None
     search_locale: str | None = None
+    origin_address: str | None = None
     status: str
 
 

@@ -21,10 +21,10 @@ export function ProjectHeader({
   if (!project) return <div className="project-header">Loading...</div>
 
   const color = STATUS_COLORS[project.status] ?? '#888'
-  const tokens = stats
-    ? stats.total_input_tokens + stats.total_output_tokens
+  // Sonnet 4.6 pricing: $3/M input, $15/M output
+  const costUsd = stats
+    ? (stats.total_input_tokens * 3 + stats.total_output_tokens * 15) / 1_000_000
     : 0
-  const costUsd = tokens * 0.000003 // rough estimate for sonnet
 
   return (
     <div className="project-header">

@@ -4,8 +4,11 @@ import { api } from '../../api/client'
 import type { AttributeDistribution, Fallback, Listing, Requirement } from '../../types'
 import { Histogram } from './Histogram'
 
-function mapsUrl(address: string): string {
-  return `https://www.google.com/maps/search/${encodeURIComponent(address)}`
+function mapsDirectionsUrl(destination: string, origin?: string | null): string {
+  if (origin) {
+    return `https://www.google.com/maps/dir/${encodeURIComponent(origin)}/${encodeURIComponent(destination)}`
+  }
+  return `https://www.google.com/maps/search/${encodeURIComponent(destination)}`
 }
 
 /** Extract value from plain or structured attribute */
@@ -40,10 +43,12 @@ export function ListingDetail({
   listing,
   requirements,
   projectId,
+  originAddress,
 }: {
   listing: Listing
   requirements: Requirement[]
   projectId: string
+  originAddress?: string | null
 }) {
   const { data: fallbacks } = useQuery({
     queryKey: ['fallbacks', projectId, listing.id],
@@ -78,8 +83,8 @@ export function ListingDetail({
         </div>
         {listing.address && (
           <p className="detail-address">
-            <a href={mapsUrl(listing.address)} target="_blank" rel="noopener noreferrer">
-              {listing.address} &rarr;
+            <a href={mapsDirectionsUrl(listing.address, originAddress)} target="_blank" rel="noopener noreferrer">
+              {listing.address} {originAddress ? '(directions)' : ''} &rarr;
             </a>
           </p>
         )}
