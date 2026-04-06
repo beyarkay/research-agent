@@ -186,6 +186,31 @@ body {
 }
 .refine-actions .btn-secondary { background: #fff; color: var(--fg); }
 
+/* Add listing form */
+.add-listing-form {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+  align-items: center;
+}
+.add-listing-form input[type="url"] {
+  flex: 1;
+  font-size: 12px;
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+}
+.add-listing-form button {
+  padding: 3px 10px;
+  font-size: 11px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  cursor: pointer;
+  background: var(--accent);
+  color: #fff;
+}
+.add-listing-form .btn-secondary { background: #fff; color: var(--fg); }
+
 /* Filter bar */
 .filter-bar {
   display: flex;

@@ -27,6 +27,15 @@ function extractSource(attr: unknown): string | null {
   return null
 }
 
+/** Extract per-attribute research note */
+function extractNote(attr: unknown): string | null {
+  if (typeof attr === 'object' && attr !== null && !Array.isArray(attr)) {
+    const obj = attr as Record<string, unknown>
+    if (typeof obj.note === 'string') return obj.note
+  }
+  return null
+}
+
 export function ListingDetail({
   listing,
   requirements,
@@ -140,6 +149,7 @@ function AttributeRow({
 }) {
   const value = extractValue(rawAttr)
   const source = extractSource(rawAttr)
+  const note = extractNote(rawAttr)
   const isNull = value === null || value === undefined
   const isBoolFail = requirement.type === 'bool' && value === false
 
@@ -147,15 +157,21 @@ function AttributeRow({
     ? Number(value)
     : null
 
+  // Build tooltip: note + source
+  const tooltipParts: string[] = [requirement.label]
+  if (note) tooltipParts.push(note)
+  if (source) tooltipParts.push(`Source: ${source}`)
+  const tooltip = tooltipParts.join('\n')
+
   return (
-    <div className={`attr-row ${requirement.is_hard ? 'hard' : 'soft'}`}>
+    <div className={`attr-row ${requirement.is_hard ? 'hard' : 'soft'}`} title={tooltip}>
       <span className={`attr-value ${isNull ? 'unknown' : ''} ${isBoolFail ? 'fail' : ''}`}>
         {formatAttrValue(value, requirement)}
       </span>
       <span className="attr-icon">
         {isNull ? '?' : isBoolFail ? '\u2717' : '\u2713'}
       </span>
-      <span className="attr-label" title={requirement.label}>
+      <span className="attr-label">
         {requirement.is_hard && <span className="hard-marker">*</span>}
         {shortLabel(requirement.label)}
       </span>

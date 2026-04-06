@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
 import { api } from '../api/client'
@@ -15,6 +15,8 @@ export function ProjectPage() {
   const { id } = useParams<{ id: string }>()
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [showLog, setShowLog] = useState(true)
+  const [showAddForm, setShowAddForm] = useState(false)
+  const addUrlRef = useRef<HTMLInputElement>(null)
   const filters = useFilters()
   const { events } = useProjectEvents(id)
   const queryClient = useQueryClient()
@@ -58,6 +60,14 @@ export function ProjectPage() {
     },
   })
 
+  const addListingMutation = useMutation({
+    mutationFn: (url: string) => api.addListing(id!, { url }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['listings', id] })
+      setShowAddForm(false)
+    },
+  })
+
   if (!id) return null
 
   const listings = listingsPage?.items ?? []
@@ -84,6 +94,12 @@ export function ProjectPage() {
           )}
           <button
             className="btn-sm"
+            onClick={() => setShowAddForm(!showAddForm)}
+          >
+            + Add
+          </button>
+          <button
+            className="btn-sm"
             onClick={() => setShowLog(!showLog)}
           >
             {showLog ? 'Hide Log' : 'Log'}
@@ -91,7 +107,29 @@ export function ProjectPage() {
         </div>
       </div>
 
-
+      {showAddForm && (
+        <form
+          className="add-listing-form"
+          onSubmit={(e) => {
+            e.preventDefault()
+            const url = addUrlRef.current?.value?.trim()
+            if (url) addListingMutation.mutate(url)
+          }}
+        >
+          <input
+            ref={addUrlRef}
+            type="url"
+            placeholder="Paste website URL to research..."
+            autoFocus
+          />
+          <button type="submit" disabled={addListingMutation.isPending}>
+            {addListingMutation.isPending ? 'Adding...' : 'Research'}
+          </button>
+          <button type="button" className="btn-secondary" onClick={() => setShowAddForm(false)}>
+            Cancel
+          </button>
+        </form>
+      )}
 
       <FilterSortBar
         requirements={requirements ?? []}

@@ -7,7 +7,7 @@ from app.api.filters import build_listing_query, parse_filters
 from app.database import get_db
 from app.models import Requirement
 from app.research.score import extract_value
-from app.schemas import AttributeDistribution, FallbackResponse, ListingResponse, ListingsPage
+from app.schemas import AddListingRequest, AttributeDistribution, FallbackResponse, ListingResponse, ListingsPage
 
 router = APIRouter()
 
@@ -226,3 +226,97 @@ async def validate_listing_urls(project_id: str, listing_id: int) -> dict[str, b
         return {}
 
     return await validate_urls(urls_to_check)
+
+
+@router.post(
+    "/projects/{project_id}/listings/add",
+    response_model=ListingResponse,
+    status_code=201,
+)
+async def add_listing(project_id: str, body: AddListingRequest) -> ListingResponse:
+    """Manually add a listing and kick off deep research on it."""
+    import asyncio
+
+    from anthropic import AsyncAnthropic
+
+    from app.config import settings
+    from app.research.deep import deep_research
+    from app.research.score import compute_scores
+
+    db = await get_db()
+    try:
+        cursor = await db.execute("SELECT id FROM projects WHERE id = ?", (project_id,))
+        if await cursor.fetchone() is None:
+            raise HTTPException(status_code=404, detail="Project not found")
+
+        name = body.name or body.url.split("//")[-1].split("/")[0]
+        cursor = await db.execute(
+            "INSERT INTO listings (project_id, name, url, address, summary, status) "
+            "VALUES (?, ?, ?, ?, ?, 'discovered')",
+            (project_id, name, body.url, body.address, body.notes),
+        )
+        listing_id = cursor.lastrowid
+        await db.commit()
+    finally:
+        await db.close()
+
+    # Run deep research in background
+    async def _research():
+        reqs = await _get_requirements(await get_db(), project_id)
+        req_list = list(reqs.values())
+        client = AsyncAnthropic(api_key=settings.anthropic_api_key)
+        dr = await deep_research(client, name, body.url, body.address, req_list)
+
+        db2 = await get_db()
+        try:
+            await db2.execute(
+                "UPDATE listings SET attributes = ?, summary = ?, "
+                "image_url = COALESCE(?, image_url), raw_notes = ?, "
+                "status = 'complete' WHERE id = ?",
+                (json.dumps(dr.attributes), dr.summary, dr.image_url, dr.raw_notes, listing_id),
+            )
+            await db2.commit()
+        finally:
+            await db2.close()
+
+        # Rescore all listings
+        db3 = await get_db()
+        try:
+            cursor = await db3.execute(
+                "SELECT id, attributes FROM listings WHERE project_id = ?",
+                (project_id,),
+            )
+            all_listings = [{"id": r["id"], "attributes": r["attributes"]} for r in await cursor.fetchall()]
+        finally:
+            await db3.close()
+
+        scored = compute_scores(all_listings, req_list)
+        db4 = await get_db()
+        try:
+            for s in scored:
+                await db4.execute(
+                    "UPDATE listings SET score = ?, hard_pass = ?, "
+                    "hard_failures = ?, data_completeness = ? WHERE id = ?",
+                    (
+                        s["score"],
+                        int(s["hard_pass"]),
+                        json.dumps(s["hard_failures"]),
+                        s["data_completeness"],
+                        s["id"],
+                    ),
+                )
+            await db4.commit()
+        finally:
+            await db4.close()
+
+    asyncio.create_task(_research())
+
+    # Return the listing immediately (research happens in background)
+    db = await get_db()
+    try:
+        cursor = await db.execute("SELECT * FROM listings WHERE id = ?", (listing_id,))
+        row = await cursor.fetchone()
+        assert row is not None
+        return _row_to_listing(row)
+    finally:
+        await db.close()

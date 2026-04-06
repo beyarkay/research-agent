@@ -5,6 +5,13 @@ class ProjectCreate(BaseModel):
     prompt: str
 
 
+class AddListingRequest(BaseModel):
+    url: str
+    name: str | None = None
+    address: str | None = None
+    notes: str | None = None
+
+
 class ProjectResponse(BaseModel):
     id: str
     created_at: str

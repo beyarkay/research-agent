@@ -76,4 +76,13 @@ export const api = {
 
   getDistributions: (projectId: string) =>
     request<AttributeDistribution[]>(`/projects/${projectId}/distributions`),
+
+  addListing: (
+    projectId: string,
+    data: { url: string; name?: string; address?: string; notes?: string }
+  ) =>
+    request<Listing>(`/projects/${projectId}/listings/add`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 }

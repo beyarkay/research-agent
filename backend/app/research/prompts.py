@@ -74,6 +74,11 @@ IMPORTANT research strategy:
 For EACH attribute, return a structured object with:
 - "value": the actual value (use the types specified below)
 - "source": the URL where you found this information
+- "note": a short explanation of HOW you determined this value (1-2 sentences).
+  Include specific details like names, addresses, distances. E.g.:
+  "Bigly Fitness at 5 Waymore Ave is a 1-min walk from the venue."
+  "Pricing page lists Hot Desk at R2,500/mo and Dedicated Desk at R4,500/mo."
+  "Building has 24/7 key-card access per their FAQ page."
 
 For NUMERIC attributes that have MULTIPLE tiers/options (e.g. different membership prices),
 return the value as an array of objects:
@@ -85,13 +90,14 @@ Rules:
 - For boolean attributes, value should be true/false
 - For numeric attributes, value should be a number (or array for multi-tier)
 - Always include the source URL — prefer the official website
+- Always include the note explaining your reasoning
 - Write a 2-3 sentence summary highlighting the most relevant features
 - Include raw research notes listing ALL URLs you checked
 
 Return JSON:
 {{
   "attributes": {{
-    "key": {{"value": ..., "source": "https://..."}},
+    "key": {{"value": ..., "source": "https://...", "note": "..."}},
     "key2": null,
     ...
   }},
