@@ -16,10 +16,17 @@ For each requirement:
 - Set direction: "higher_better", "lower_better", or "exact"
 - Include a unit if applicable (e.g., "min", "ZAR", "km")
 
-Also infer requirements the user didn't explicitly state but would reasonably expect. For example:
+ALWAYS include a hard requirement "currently_open" (bool, is_hard=true) — the venue must
+be currently operating and open for new members/customers. Closed or permanently shut
+venues must fail this requirement.
+
+Also infer requirements the user didn't explicitly state but would reasonably expect:
 - Coworking spaces: WiFi, desk availability, working hours
 - Apartments: safety, public transport access, natural light
 - Restaurants: hygiene rating, parking
+
+If there's a specific origin address for distance calculations, do NOT add a drive time
+requirement — that will be calculated automatically via Google Maps after research.
 
 Generate 5-10 diverse search queries that will find a wide range of options.
 Vary the phrasing and focus of each query."""
@@ -107,7 +114,7 @@ Return JSON:
   }},
   "full_address": "REQUIRED: full street address (number, street, suburb, city, postal code)",
   "summary": "2-3 sentence summary",
-  "image_url": "URL to a representative image or null",
+  "image_url": "URL to a photo of the space from its website or Google Maps. Required.",
   "raw_notes": "Detailed notes including all URLs checked"
 }}"""
 

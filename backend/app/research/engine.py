@@ -424,13 +424,13 @@ async def run_research(project_id: str) -> None:
                                 "duration_s": round(dr.duration_ms / 1000, 1),
                             },
                         )
-                    except Exception:
+                    except Exception as exc:
                         logger.exception("Deep research failed for listing %d", lid)
                         db2 = await get_db()
                         try:
                             await db2.execute(
-                                "UPDATE listings SET status = 'error' WHERE id = ?",
-                                (lid,),
+                                "UPDATE listings SET status = 'error', raw_notes = ? WHERE id = ?",
+                                (f"ERROR: {exc}", lid),
                             )
                             await db2.commit()
                         finally:

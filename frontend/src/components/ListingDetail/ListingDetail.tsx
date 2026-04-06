@@ -205,9 +205,18 @@ function AttributeRow({
   const isNull = value === null || value === undefined
   const isBoolFail = requirement.type === 'bool' && value === false
 
-  const numericValue = (requirement.type === 'int' || requirement.type === 'float') && !isNull
-    ? Number(value)
-    : null
+  // Extract numeric values for histogram markers (supports multi-tier)
+  const numericValues: number[] = []
+  if ((requirement.type === 'int' || requirement.type === 'float') && !isNull) {
+    if (Array.isArray(value)) {
+      for (const item of value as Array<Record<string, unknown>>) {
+        const amt = item.amount ?? item.price ?? item.value
+        if (amt !== null && amt !== undefined) numericValues.push(Number(amt))
+      }
+    } else {
+      numericValues.push(Number(value))
+    }
+  }
 
   // Build tooltip: note + source
   const tooltipParts: string[] = [requirement.label]
@@ -218,7 +227,7 @@ function AttributeRow({
   return (
     <div className={`attr-row ${requirement.is_hard ? 'hard' : 'soft'}`}>
       <span className={`attr-value ${isNull ? 'unknown' : ''} ${isBoolFail ? 'fail' : ''}`}>
-        {formatAttrValue(value, requirement)}
+        <FormatAttrValue val={value} req={requirement} />
       </span>
       <span className="attr-icon">
         {isNull ? '?' : isBoolFail ? '\u2717' : '\u2713'}
@@ -230,7 +239,7 @@ function AttributeRow({
       {distribution && (
         <Histogram
           values={distribution.values}
-          current={numericValue}
+          current={numericValues}
           unit={distribution.unit}
         />
       )}
@@ -265,29 +274,42 @@ function shortLabel(label: string): string {
   return label.slice(0, 22) + '...'
 }
 
-function formatAttrValue(val: unknown, req: Requirement): string {
-  if (val === null || val === undefined) return '\u2014'
+/** Format attribute value as a React node (supports multi-line for tiers) */
+function FormatAttrValue({ val, req }: { val: unknown; req: Requirement }) {
+  if (val === null || val === undefined) return <>{'\u2014'}</>
 
-  // Multi-tier values (array of {tier, amount})
   if (Array.isArray(val)) {
-    const tiers = val as Array<Record<string, unknown>>
-    return tiers
-      .map((t) => {
-        const amount = t.amount ?? t.price ?? t.value
-        const tier = t.tier ?? t.label ?? t.name ?? ''
-        const unit = req.unit ? ` ${req.unit}` : ''
-        return `${tier}: ${amount}${unit}`
-      })
-      .join(' · ')
+    const items = val as unknown[]
+    // String array (e.g. ["hot_desk", "private_office"])
+    if (items.length > 0 && typeof items[0] === 'string') {
+      return <>{(items as string[]).join(', ')}</>
+    }
+    // Object array (e.g. [{tier, amount}])
+    const tiers = items as Array<Record<string, unknown>>
+    const u = req.unit ? ` ${req.unit}` : ''
+    return (
+      <span className="multi-tier">
+        {tiers.map((t, i) => {
+          const amount = t.amount ?? t.price ?? t.value
+          const tier = t.tier ?? t.label ?? t.name ?? ''
+          if (amount === undefined || amount === null) return null
+          return (
+            <span key={i} className="tier-line">
+              {tier}: {amount}{u}
+            </span>
+          )
+        })}
+      </span>
+    )
   }
 
-  if (req.type === 'bool') return val ? 'Yes' : 'No'
+  if (req.type === 'bool') return <>{val ? 'Yes' : 'No'}</>
   if (req.type === 'int' || req.type === 'float') {
     const num = Number(val)
     const formatted = req.type === 'float' ? num.toLocaleString() : String(num)
-    return req.unit ? `${formatted} ${req.unit}` : formatted
+    return <>{req.unit ? `${formatted} ${req.unit}` : formatted}</>
   }
-  return String(val)
+  return <>{String(val)}</>
 }
 
 function scoreLevel(score: number): string {

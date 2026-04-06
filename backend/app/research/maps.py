@@ -113,8 +113,9 @@ async def enrich_listings_with_distances(
 
         for req in dist_reqs:
             key = req["key"]
-            is_walk = "walk" in key.lower()
-            is_drive = "drive" in key.lower() or "time" in key.lower()
+            key_lower = key.lower()
+            is_walk = "walk" in key_lower or "gym" in key_lower
+            is_drive = ("drive" in key_lower or "commute" in key_lower) and not is_walk
 
             if is_drive:
                 # Drive time from user's origin to this listing

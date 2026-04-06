@@ -68,6 +68,10 @@ async def deep_research(
         + "\n\nIMPORTANT: If a URL is provided, search for and visit that "
         "website first. Look for their rates/pricing page, amenities page, "
         "and about page. Then supplement with review sites."
+        "\n\nNOTE: Drive/commute times will be calculated automatically via "
+        "Google Maps — set any drive_time attributes to null."
+        "\n\nIf the venue is permanently closed or no longer operating, "
+        "set currently_open to false."
     )
 
     response = await client.messages.create(

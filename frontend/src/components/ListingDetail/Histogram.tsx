@@ -8,7 +8,7 @@ import { useState } from 'react'
 
 interface HistogramProps {
   values: number[]
-  current: number | null
+  current: number[]
   unit?: string | null
   width?: number
   height?: number
@@ -62,10 +62,10 @@ export function Histogram({
   const chartH = height - LABEL_H
   const u = unit ? ` ${unit}` : ''
 
-  let markerX: number | null = null
-  if (current !== null && current !== undefined) {
-    const frac = (current - binMin) / range
-    markerX = Math.max(0, Math.min(width, frac * width))
+  const markerXs: number[] = []
+  for (const c of current) {
+    const frac = (c - binMin) / range
+    markerXs.push(Math.max(0, Math.min(width, frac * width)))
   }
 
   const fmt = (n: number) => {
@@ -100,17 +100,18 @@ export function Histogram({
             />
           )
         })}
-        {markerX !== null && (
+        {markerXs.map((mx, i) => (
           <line
-            x1={markerX}
+            key={i}
+            x1={mx}
             y1={0}
-            x2={markerX}
+            x2={mx}
             y2={chartH}
             stroke="#dc2626"
             strokeWidth={2}
             style={{ pointerEvents: 'none' }}
           />
-        )}
+        ))}
         <text x={0} y={height} fontSize={8} fill="#999" textAnchor="start">
           {fmt(binMin)}
         </text>
