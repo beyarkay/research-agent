@@ -12,7 +12,14 @@
       "Bash(/bin/rm -rf /Users/brk/projects/claude-research/frontend)",
       "Bash(npx --yes create-vite frontend --template react-ts)",
       "Bash(chmod +x:*)",
-      "Bash(uv run:*)"
+      "Bash(uv run:*)",
+      "Bash(git commit:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx vitest:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(npx vite:*)",
+      "Bash(bash scripts/check.sh)",
+      "Bash(bash ../scripts/check.sh)"
     ]
   }
 }
