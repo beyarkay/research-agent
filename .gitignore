@@ -9,3 +9,8 @@ dist/
 *.tsbuildinfo
 .DS_Store
 .check-output/
+claude-resume.sh
+*.db-shm
+*.db-wal
+*/*.db-wal
+*/*.db-shm
